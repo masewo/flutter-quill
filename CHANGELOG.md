@@ -1,3 +1,36 @@
+## [1.2.2]
+* Checkbox supports tapping.
+
+## [1.2.1]
+* Indented position not holding while editing.
+
+## [1.2.0]
+* Fix image button cancel causes crash.
+
+## [1.1.8]
+* Fix height of empty line bug.
+
+## [1.1.7]
+* Fix text selection in read-only mode.
+
+## [1.1.6]
+* Remove universal_html dependency.
+
+## [1.1.5]
+* Enable "Select", "Select All" and "Copy" in read-only mode.
+
+## [1.1.4]
+* Fix text selection issue.
+
+## [1.1.3]
+* Update example folder.
+
+## [1.1.2]
+* Add pedantic.
+
+## [1.1.1]
+* Base64 image support.
+
 ## [1.1.0]
 * Support null safety.
 

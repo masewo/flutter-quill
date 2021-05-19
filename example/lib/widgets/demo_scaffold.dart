@@ -11,21 +11,21 @@ typedef DemoContentBuilder = Widget Function(
 
 // Common scaffold for all examples.
 class DemoScaffold extends StatefulWidget {
+  const DemoScaffold({
+    required this.documentFilename,
+    required this.builder,
+    this.actions,
+    this.showToolbar = true,
+    this.floatingActionButton,
+    Key? key,
+  }) : super(key: key);
+
   /// Filename of the document to load into the editor.
   final String documentFilename;
   final DemoContentBuilder builder;
   final List<Widget>? actions;
   final Widget? floatingActionButton;
   final bool showToolbar;
-
-  const DemoScaffold({
-    Key? key,
-    required this.documentFilename,
-    required this.builder,
-    this.actions,
-    this.showToolbar = true,
-    this.floatingActionButton,
-  }) : super(key: key);
 
   @override
   _DemoScaffoldState createState() => _DemoScaffoldState();
@@ -59,14 +59,14 @@ class _DemoScaffoldState extends State<DemoScaffold> {
       final doc = Document.fromJson(jsonDecode(result));
       setState(() {
         _controller = QuillController(
-            document: doc, selection: TextSelection.collapsed(offset: 0));
+            document: doc, selection: const TextSelection.collapsed(offset: 0));
         _loading = false;
       });
     } catch (error) {
       final doc = Document()..insert(0, 'Empty asset');
       setState(() {
         _controller = QuillController(
-            document: doc, selection: TextSelection.collapsed(offset: 0));
+            document: doc, selection: const TextSelection.collapsed(offset: 0));
         _loading = false;
       });
     }
@@ -97,7 +97,7 @@ class _DemoScaffoldState extends State<DemoScaffold> {
       ),
       floatingActionButton: widget.floatingActionButton,
       body: _loading
-          ? Center(child: Text('Loading...'))
+          ? const Center(child: Text('Loading...'))
           : widget.builder(context, _controller),
     );
   }

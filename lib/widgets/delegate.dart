@@ -2,10 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter_quill/models/documents/nodes/leaf.dart';
-import 'package:flutter_quill/widgets/text_selection.dart';
 
+import '../models/documents/nodes/leaf.dart';
 import 'editor.dart';
+import 'text_selection.dart';
 
 typedef EmbedBuilder = Widget Function(BuildContext context, Embed node);
 
@@ -18,29 +18,29 @@ abstract class EditorTextSelectionGestureDetectorBuilderDelegate {
 }
 
 class EditorTextSelectionGestureDetectorBuilder {
+  EditorTextSelectionGestureDetectorBuilder(this.delegate);
+
   final EditorTextSelectionGestureDetectorBuilderDelegate delegate;
   bool shouldShowSelectionToolbar = true;
-
-  EditorTextSelectionGestureDetectorBuilder(this.delegate);
 
   EditorState? getEditor() {
     return delegate.getEditableTextKey().currentState;
   }
 
   RenderEditor? getRenderEditor() {
-    return this.getEditor()!.getRenderEditor();
+    return getEditor()!.getRenderEditor();
   }
 
-  onTapDown(TapDownDetails details) {
+  void onTapDown(TapDownDetails details) {
     getRenderEditor()!.handleTapDown(details);
 
-    PointerDeviceKind? kind = details.kind;
+    final kind = details.kind;
     shouldShowSelectionToolbar = kind == null ||
         kind == PointerDeviceKind.touch ||
         kind == PointerDeviceKind.stylus;
   }
 
-  onForcePressStart(ForcePressDetails details) {
+  void onForcePressStart(ForcePressDetails details) {
     assert(delegate.getForcePressEnabled());
     shouldShowSelectionToolbar = true;
     if (delegate.getSelectionEnabled()) {
@@ -52,7 +52,7 @@ class EditorTextSelectionGestureDetectorBuilder {
     }
   }
 
-  onForcePressEnd(ForcePressDetails details) {
+  void onForcePressEnd(ForcePressDetails details) {
     assert(delegate.getForcePressEnabled());
     getRenderEditor()!.selectWordsInRange(
       details.globalPosition,
@@ -64,15 +64,15 @@ class EditorTextSelectionGestureDetectorBuilder {
     }
   }
 
-  onSingleTapUp(TapUpDetails details) {
+  void onSingleTapUp(TapUpDetails details) {
     if (delegate.getSelectionEnabled()) {
       getRenderEditor()!.selectWordEdge(SelectionChangedCause.tap);
     }
   }
 
-  onSingleTapCancel() {}
+  void onSingleTapCancel() {}
 
-  onSingleLongTapStart(LongPressStartDetails details) {
+  void onSingleLongTapStart(LongPressStartDetails details) {
     if (delegate.getSelectionEnabled()) {
       getRenderEditor()!.selectPositionAt(
         details.globalPosition,
@@ -82,7 +82,7 @@ class EditorTextSelectionGestureDetectorBuilder {
     }
   }
 
-  onSingleLongTapMoveUpdate(LongPressMoveUpdateDetails details) {
+  void onSingleLongTapMoveUpdate(LongPressMoveUpdateDetails details) {
     if (delegate.getSelectionEnabled()) {
       getRenderEditor()!.selectPositionAt(
         details.globalPosition,
@@ -92,13 +92,13 @@ class EditorTextSelectionGestureDetectorBuilder {
     }
   }
 
-  onSingleLongTapEnd(LongPressEndDetails details) {
+  void onSingleLongTapEnd(LongPressEndDetails details) {
     if (shouldShowSelectionToolbar) {
       getEditor()!.showToolbar();
     }
   }
 
-  onDoubleTapDown(TapDownDetails details) {
+  void onDoubleTapDown(TapDownDetails details) {
     if (delegate.getSelectionEnabled()) {
       getRenderEditor()!.selectWord(SelectionChangedCause.tap);
       if (shouldShowSelectionToolbar) {
@@ -107,7 +107,7 @@ class EditorTextSelectionGestureDetectorBuilder {
     }
   }
 
-  onDragSelectionStart(DragStartDetails details) {
+  void onDragSelectionStart(DragStartDetails details) {
     getRenderEditor()!.selectPositionAt(
       details.globalPosition,
       null,
@@ -115,7 +115,7 @@ class EditorTextSelectionGestureDetectorBuilder {
     );
   }
 
-  onDragSelectionUpdate(
+  void onDragSelectionUpdate(
       DragStartDetails startDetails, DragUpdateDetails updateDetails) {
     getRenderEditor()!.selectPositionAt(
       startDetails.globalPosition,
@@ -124,7 +124,7 @@ class EditorTextSelectionGestureDetectorBuilder {
     );
   }
 
-  onDragSelectionEnd(DragEndDetails details) {}
+  void onDragSelectionEnd(DragEndDetails details) {}
 
   Widget build(HitTestBehavior behavior, Widget child) {
     return EditorTextSelectionGestureDetector(

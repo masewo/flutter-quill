@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:quiver/core.dart';
 
 enum AttributeScope {
@@ -8,13 +10,13 @@ enum AttributeScope {
 }
 
 class Attribute<T> {
+  Attribute(this.key, this.scope, this.value);
+
   final String key;
   final AttributeScope scope;
   final T value;
 
-  Attribute(this.key, this.scope, this.value);
-
-  static final Map<String, Attribute> _registry = {
+  static final Map<String, Attribute> _registry = LinkedHashMap.of({
     Attribute.bold.key: Attribute.bold,
     Attribute.italic.key: Attribute.italic,
     Attribute.underline.key: Attribute.underline,
@@ -26,16 +28,16 @@ class Attribute<T> {
     Attribute.background.key: Attribute.background,
     Attribute.placeholder.key: Attribute.placeholder,
     Attribute.header.key: Attribute.header,
-    Attribute.indent.key: Attribute.indent,
     Attribute.align.key: Attribute.align,
     Attribute.list.key: Attribute.list,
     Attribute.codeBlock.key: Attribute.codeBlock,
     Attribute.blockQuote.key: Attribute.blockQuote,
+    Attribute.indent.key: Attribute.indent,
     Attribute.width.key: Attribute.width,
     Attribute.height.key: Attribute.height,
     Attribute.style.key: Attribute.style,
     Attribute.token.key: Attribute.token,
-  };
+  });
 
   static final BoldAttribute bold = BoldAttribute();
 
@@ -88,22 +90,22 @@ class Attribute<T> {
     Attribute.placeholder.key,
   };
 
-  static final Set<String> blockKeys = {
+  static final Set<String> blockKeys = LinkedHashSet.of({
     Attribute.header.key,
-    Attribute.indent.key,
     Attribute.align.key,
     Attribute.list.key,
     Attribute.codeBlock.key,
     Attribute.blockQuote.key,
-  };
+    Attribute.indent.key,
+  });
 
-  static final Set<String> blockKeysExceptHeader = {
+  static final Set<String> blockKeysExceptHeader = LinkedHashSet.of({
     Attribute.list.key,
-    Attribute.indent.key,
     Attribute.align.key,
     Attribute.codeBlock.key,
     Attribute.blockQuote.key,
-  };
+    Attribute.indent.key,
+  });
 
   static Attribute<int?> get h1 => HeaderAttribute(level: 1);
 
@@ -151,7 +153,10 @@ class Attribute<T> {
     if (level == 2) {
       return indentL2;
     }
-    return indentL3;
+    if (level == 3) {
+      return indentL3;
+    }
+    return IndentAttribute(level: level);
   }
 
   bool get isInline => scope == AttributeScope.INLINE;
@@ -164,9 +169,21 @@ class Attribute<T> {
     if (!_registry.containsKey(key)) {
       throw ArgumentError.value(key, 'key "$key" not found.');
     }
-    Attribute origin = _registry[key]!;
-    Attribute attribute = clone(origin, value);
+    final origin = _registry[key]!;
+    final attribute = clone(origin, value);
     return attribute;
+  }
+
+  static int getRegistryOrder(Attribute attribute) {
+    var order = 0;
+    for (final attr in _registry.values) {
+      if (attr.key == attribute.key) {
+        break;
+      }
+      order++;
+    }
+
+    return order;
   }
 
   static Attribute clone(Attribute origin, dynamic value) {
@@ -177,7 +194,7 @@ class Attribute<T> {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! Attribute<T>) return false;
-    Attribute<T> typedOther = other;
+    final typedOther = other;
     return key == typedOther.key &&
         scope == typedOther.scope &&
         value == typedOther.value;

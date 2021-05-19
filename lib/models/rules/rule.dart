@@ -1,7 +1,6 @@
-import 'package:flutter_quill/models/documents/attribute.dart';
-import 'package:flutter_quill/models/documents/document.dart';
-import 'package:flutter_quill/models/quill_delta.dart';
-
+import '../documents/attribute.dart';
+import '../documents/document.dart';
+import '../quill_delta.dart';
 import 'delete.dart';
 import 'format.dart';
 import 'insert.dart';
@@ -18,7 +17,7 @@ abstract class Rule {
         len: len, data: data, attribute: attribute);
   }
 
-  validateArgs(int? len, Object? data, Attribute? attribute);
+  void validateArgs(int? len, Object? data, Attribute? attribute);
 
   Delta? applyRule(Delta document, int index,
       {int? len, Object? data, Attribute? attribute});
@@ -27,33 +26,39 @@ abstract class Rule {
 }
 
 class Rules {
-  final List<Rule> _rules;
-  static final Rules _instance = Rules([
-    FormatLinkAtCaretPositionRule(),
-    ResolveLineFormatRule(),
-    ResolveInlineFormatRule(),
-    InsertEmbedsRule(),
-    ForceNewlineForInsertsAroundEmbedRule(),
-    AutoExitBlockRule(),
-    PreserveBlockStyleOnInsertRule(),
-    PreserveLineStyleOnSplitRule(),
-    ResetLineFormatOnNewLineRule(),
-    AutoFormatLinksRule(),
-    PreserveInlineStylesRule(),
-    CatchAllInsertRule(),
-    EnsureEmbedLineRule(),
-    PreserveLineStyleOnMergeRule(),
-    CatchAllDeleteRule(),
-  ]);
-
   Rules(this._rules);
 
+  List<Rule> _customRules = [];
+
+  final List<Rule> _rules;
+  static final Rules _instance = Rules([
+    const FormatLinkAtCaretPositionRule(),
+    const ResolveLineFormatRule(),
+    const ResolveInlineFormatRule(),
+    const InsertEmbedsRule(),
+    const ForceNewlineForInsertsAroundEmbedRule(),
+    const AutoExitBlockRule(),
+    const PreserveBlockStyleOnInsertRule(),
+    const PreserveLineStyleOnSplitRule(),
+    const ResetLineFormatOnNewLineRule(),
+    const AutoFormatLinksRule(),
+    const PreserveInlineStylesRule(),
+    const CatchAllInsertRule(),
+    const EnsureEmbedLineRule(),
+    const PreserveLineStyleOnMergeRule(),
+    const CatchAllDeleteRule(),
+  ]);
+
   static Rules getInstance() => _instance;
+
+  void setCustomRules(List<Rule> customRules) {
+    _customRules = customRules;
+  }
 
   Delta apply(RuleType ruleType, Document document, int index,
       {int? len, Object? data, Attribute? attribute}) {
     final delta = document.toDelta();
-    for (var rule in _rules) {
+    for (final rule in _customRules + _rules) {
       if (rule.type != ruleType) {
         continue;
       }
@@ -61,13 +66,12 @@ class Rules {
         final result = rule.apply(delta, index,
             len: len, data: data, attribute: attribute);
         if (result != null) {
-          print("Rule $rule applied");
           return result..trim();
         }
       } catch (e) {
-        throw e;
+        rethrow;
       }
     }
-    throw ('Apply rules failed');
+    throw 'Apply rules failed';
   }
 }

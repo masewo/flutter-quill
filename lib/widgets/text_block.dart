@@ -1,19 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter_quill/models/documents/attribute.dart';
-import 'package:flutter_quill/models/documents/nodes/block.dart';
-import 'package:flutter_quill/models/documents/nodes/line.dart';
-import 'package:flutter_quill/models/documents/nodes/node.dart';
-import 'package:flutter_quill/widgets/cursor.dart';
-import 'package:flutter_quill/widgets/default_styles.dart';
-import 'package:flutter_quill/widgets/text_line.dart';
-import 'package:flutter_quill/widgets/text_selection.dart';
 import 'package:tuple/tuple.dart';
 
+import '../models/documents/attribute.dart';
+import '../models/documents/nodes/block.dart';
+import '../models/documents/nodes/line.dart';
 import 'box.dart';
+import 'cursor.dart';
+import 'default_styles.dart';
 import 'delegate.dart';
 import 'editor.dart';
+import 'text_line.dart';
+import 'text_selection.dart';
 
 const List<int> arabianRomanNumbers = [
   1000,
@@ -32,24 +31,42 @@ const List<int> arabianRomanNumbers = [
 ];
 
 const List<String> romanNumbers = [
-  "M",
-  "CM",
-  "D",
-  "CD",
-  "C",
-  "XC",
-  "L",
-  "XL",
-  "X",
-  "IX",
-  "V",
-  "IV",
-  "I"
+  'M',
+  'CM',
+  'D',
+  'CD',
+  'C',
+  'XC',
+  'L',
+  'XL',
+  'X',
+  'IX',
+  'V',
+  'IV',
+  'I'
 ];
 
 class EditableTextBlock extends StatelessWidget {
+  const EditableTextBlock(
+    this.block,
+    this.textDirection,
+    this.scrollBottomInset,
+    this.verticalSpacing,
+    this.textSelection,
+    this.color,
+    this.styles,
+    this.enableInteractiveSelection,
+    this.hasFocus,
+    this.contentPadding,
+    this.embedBuilder,
+    this.cursorCont,
+    this.indentLevelCounts,
+    this.onCheckboxTap,
+  );
+
   final Block block;
   final TextDirection textDirection;
+  final double scrollBottomInset;
   final Tuple2 verticalSpacing;
   final TextSelection textSelection;
   final Color color;
@@ -60,38 +77,26 @@ class EditableTextBlock extends StatelessWidget {
   final EmbedBuilder embedBuilder;
   final CursorCont cursorCont;
   final Map<int, int> indentLevelCounts;
-
-  EditableTextBlock(
-      this.block,
-      this.textDirection,
-      this.verticalSpacing,
-      this.textSelection,
-      this.color,
-      this.styles,
-      this.enableInteractiveSelection,
-      this.hasFocus,
-      this.contentPadding,
-      this.embedBuilder,
-      this.cursorCont,
-      this.indentLevelCounts);
+  final Function(int, bool) onCheckboxTap;
 
   @override
   Widget build(BuildContext context) {
     assert(debugCheckHasMediaQuery(context));
 
-    DefaultStyles? defaultStyles = QuillStyles.getStyles(context, false);
+    final defaultStyles = QuillStyles.getStyles(context, false);
     return _EditableBlock(
         block,
         textDirection,
         verticalSpacing as Tuple2<double, double>,
-        _getDecorationForBlock(block, defaultStyles) ?? BoxDecoration(),
+        scrollBottomInset,
+        _getDecorationForBlock(block, defaultStyles) ?? const BoxDecoration(),
         contentPadding,
-        _buildChildren(context, this.indentLevelCounts));
+        _buildChildren(context, indentLevelCounts));
   }
 
   BoxDecoration? _getDecorationForBlock(
       Block node, DefaultStyles? defaultStyles) {
-    Map<String, Attribute> attrs = block.style.attributes;
+    final attrs = block.style.attributes;
     if (attrs.containsKey(Attribute.blockQuote.key)) {
       return defaultStyles!.quote!.decoration;
     }
@@ -103,13 +108,13 @@ class EditableTextBlock extends StatelessWidget {
 
   List<Widget> _buildChildren(
       BuildContext context, Map<int, int> indentLevelCounts) {
-    DefaultStyles? defaultStyles = QuillStyles.getStyles(context, false);
-    int count = block.children.length;
-    var children = <Widget>[];
-    int index = 0;
-    for (Line line in Iterable.castFrom<dynamic, Line>(block.children)) {
+    final defaultStyles = QuillStyles.getStyles(context, false);
+    final count = block.children.length;
+    final children = <Widget>[];
+    var index = 0;
+    for (final line in Iterable.castFrom<dynamic, Line>(block.children)) {
       index++;
-      EditableTextLine editableTextLine = EditableTextLine(
+      final editableTextLine = EditableTextLine(
           line,
           _buildLeading(context, line, index, indentLevelCounts, count),
           TextLine(
@@ -134,36 +139,47 @@ class EditableTextBlock extends StatelessWidget {
 
   Widget? _buildLeading(BuildContext context, Line line, int index,
       Map<int, int> indentLevelCounts, int count) {
-    DefaultStyles? defaultStyles = QuillStyles.getStyles(context, false);
-    Map<String, Attribute> attrs = line.style.attributes;
+    final defaultStyles = QuillStyles.getStyles(context, false);
+    final attrs = line.style.attributes;
     if (attrs[Attribute.list.key] == Attribute.ol) {
       return _NumberPoint(
         index: index,
         indentLevelCounts: indentLevelCounts,
         count: count,
-        style: defaultStyles!.paragraph!.style,
+        style: defaultStyles!.leading!.style,
         attrs: attrs,
-        width: 32.0,
-        padding: 8.0,
+        width: 32,
+        padding: 8,
       );
     }
 
     if (attrs[Attribute.list.key] == Attribute.ul) {
       return _BulletPoint(
-        style: defaultStyles!.paragraph!.style
-            .copyWith(fontWeight: FontWeight.bold),
+        style:
+            defaultStyles!.leading!.style.copyWith(fontWeight: FontWeight.bold),
         width: 32,
       );
     }
 
     if (attrs[Attribute.list.key] == Attribute.checked) {
       return _Checkbox(
-          style: defaultStyles!.paragraph!.style, width: 32, isChecked: true);
+        key: UniqueKey(),
+        style: defaultStyles!.leading!.style,
+        width: 32,
+        isChecked: true,
+        offset: block.offset + line.offset,
+        onTap: onCheckboxTap,
+      );
     }
 
     if (attrs[Attribute.list.key] == Attribute.unchecked) {
       return _Checkbox(
-          style: defaultStyles!.paragraph!.style, width: 32, isChecked: false);
+        key: UniqueKey(),
+        style: defaultStyles!.leading!.style,
+        width: 32,
+        offset: block.offset + line.offset,
+        onTap: onCheckboxTap,
+      );
     }
 
     if (attrs.containsKey(Attribute.codeBlock.key)) {
@@ -173,9 +189,9 @@ class EditableTextBlock extends StatelessWidget {
         count: count,
         style: defaultStyles!.code!.style
             .copyWith(color: defaultStyles.code!.style.color!.withOpacity(0.4)),
-        width: 32.0,
+        width: 32,
         attrs: attrs,
-        padding: 16.0,
+        padding: 16,
         withDot: false,
       );
     }
@@ -183,10 +199,10 @@ class EditableTextBlock extends StatelessWidget {
   }
 
   double _getIndentWidth() {
-    Map<String, Attribute> attrs = block.style.attributes;
+    final attrs = block.style.attributes;
 
-    Attribute? indent = attrs[Attribute.indent.key];
-    double extraIndent = 0.0;
+    final indent = attrs[Attribute.indent.key];
+    var extraIndent = 0.0;
     if (indent != null && indent.value != null) {
       extraIndent = 16.0 * indent.value;
     }
@@ -200,11 +216,11 @@ class EditableTextBlock extends StatelessWidget {
 
   Tuple2 _getSpacingForLine(
       Line node, int index, int count, DefaultStyles? defaultStyles) {
-    double top = 0.0, bottom = 0.0;
+    var top = 0.0, bottom = 0.0;
 
-    Map<String, Attribute> attrs = block.style.attributes;
+    final attrs = block.style.attributes;
     if (attrs.containsKey(Attribute.header.key)) {
-      int? level = attrs[Attribute.header.key]!.value;
+      final level = attrs[Attribute.header.key]!.value;
       switch (level) {
         case 1:
           top = defaultStyles!.h1!.verticalSpacing.item1;
@@ -219,7 +235,7 @@ class EditableTextBlock extends StatelessWidget {
           bottom = defaultStyles.h3!.verticalSpacing.item2;
           break;
         default:
-          throw ('Invalid level $level');
+          throw 'Invalid level $level';
       }
     } else {
       late Tuple2 lineSpacing;
@@ -253,11 +269,12 @@ class EditableTextBlock extends StatelessWidget {
 class RenderEditableTextBlock extends RenderEditableContainerBox
     implements RenderEditableBox {
   RenderEditableTextBlock({
-    List<RenderEditableBox>? children,
     required Block block,
     required TextDirection textDirection,
     required EdgeInsetsGeometry padding,
+    required double scrollBottomInset,
     required Decoration decoration,
+    List<RenderEditableBox>? children,
     ImageConfiguration configuration = ImageConfiguration.empty,
     EdgeInsets contentPadding = EdgeInsets.zero,
   })  : _decoration = decoration,
@@ -268,6 +285,7 @@ class RenderEditableTextBlock extends RenderEditableContainerBox
           children,
           block,
           textDirection,
+          scrollBottomInset,
           padding.add(contentPadding),
         );
 
@@ -281,7 +299,7 @@ class RenderEditableTextBlock extends RenderEditableContainerBox
   }
 
   @override
-  setPadding(EdgeInsetsGeometry value) {
+  void setPadding(EdgeInsetsGeometry value) {
     super.setPadding(value.add(_contentPadding));
     _savedPadding = value;
   }
@@ -310,22 +328,22 @@ class RenderEditableTextBlock extends RenderEditableContainerBox
 
   @override
   TextRange getLineBoundary(TextPosition position) {
-    RenderEditableBox child = childAtPosition(position);
-    TextRange rangeInChild = child.getLineBoundary(TextPosition(
-      offset: position.offset - child.getContainer().getOffset(),
+    final child = childAtPosition(position);
+    final rangeInChild = child.getLineBoundary(TextPosition(
+      offset: position.offset - child.getContainer().offset,
       affinity: position.affinity,
     ));
     return TextRange(
-      start: rangeInChild.start + child.getContainer().getOffset(),
-      end: rangeInChild.end + child.getContainer().getOffset(),
+      start: rangeInChild.start + child.getContainer().offset,
+      end: rangeInChild.end + child.getContainer().offset,
     );
   }
 
   @override
   Offset getOffsetForCaret(TextPosition position) {
-    RenderEditableBox child = childAtPosition(position);
+    final child = childAtPosition(position);
     return child.getOffsetForCaret(TextPosition(
-          offset: position.offset - child.getContainer().getOffset(),
+          offset: position.offset - child.getContainer().offset,
           affinity: position.affinity,
         )) +
         (child.parentData as BoxParentData).offset;
@@ -333,21 +351,21 @@ class RenderEditableTextBlock extends RenderEditableContainerBox
 
   @override
   TextPosition getPositionForOffset(Offset offset) {
-    RenderEditableBox child = childAtOffset(offset)!;
-    BoxParentData parentData = child.parentData as BoxParentData;
-    TextPosition localPosition =
+    final child = childAtOffset(offset)!;
+    final parentData = child.parentData as BoxParentData;
+    final localPosition =
         child.getPositionForOffset(offset - parentData.offset);
     return TextPosition(
-      offset: localPosition.offset + child.getContainer().getOffset(),
+      offset: localPosition.offset + child.getContainer().offset,
       affinity: localPosition.affinity,
     );
   }
 
   @override
   TextRange getWordBoundary(TextPosition position) {
-    RenderEditableBox child = childAtPosition(position);
-    int nodeOffset = child.getContainer().getOffset();
-    TextRange childWord = child
+    final child = childAtPosition(position);
+    final nodeOffset = child.getContainer().offset;
+    final childWord = child
         .getWordBoundary(TextPosition(offset: position.offset - nodeOffset));
     return TextRange(
       start: childWord.start + nodeOffset,
@@ -359,27 +377,26 @@ class RenderEditableTextBlock extends RenderEditableContainerBox
   TextPosition? getPositionAbove(TextPosition position) {
     assert(position.offset < getContainer().length);
 
-    RenderEditableBox child = childAtPosition(position);
-    TextPosition childLocalPosition = TextPosition(
-        offset: position.offset - child.getContainer().getOffset());
-    TextPosition? result = child.getPositionAbove(childLocalPosition);
+    final child = childAtPosition(position);
+    final childLocalPosition =
+        TextPosition(offset: position.offset - child.getContainer().offset);
+    final result = child.getPositionAbove(childLocalPosition);
     if (result != null) {
-      return TextPosition(
-          offset: result.offset + child.getContainer().getOffset());
+      return TextPosition(offset: result.offset + child.getContainer().offset);
     }
 
-    RenderEditableBox? sibling = childBefore(child);
+    final sibling = childBefore(child);
     if (sibling == null) {
       return null;
     }
 
-    Offset caretOffset = child.getOffsetForCaret(childLocalPosition);
-    TextPosition testPosition =
+    final caretOffset = child.getOffsetForCaret(childLocalPosition);
+    final testPosition =
         TextPosition(offset: sibling.getContainer().length - 1);
-    Offset testOffset = sibling.getOffsetForCaret(testPosition);
-    Offset finalOffset = Offset(caretOffset.dx, testOffset.dy);
+    final testOffset = sibling.getOffsetForCaret(testPosition);
+    final finalOffset = Offset(caretOffset.dx, testOffset.dy);
     return TextPosition(
-        offset: sibling.getContainer().getOffset() +
+        offset: sibling.getContainer().offset +
             sibling.getPositionForOffset(finalOffset).offset);
   }
 
@@ -387,45 +404,44 @@ class RenderEditableTextBlock extends RenderEditableContainerBox
   TextPosition? getPositionBelow(TextPosition position) {
     assert(position.offset < getContainer().length);
 
-    RenderEditableBox child = childAtPosition(position);
-    TextPosition childLocalPosition = TextPosition(
-        offset: position.offset - child.getContainer().getOffset());
-    TextPosition? result = child.getPositionBelow(childLocalPosition);
+    final child = childAtPosition(position);
+    final childLocalPosition =
+        TextPosition(offset: position.offset - child.getContainer().offset);
+    final result = child.getPositionBelow(childLocalPosition);
     if (result != null) {
-      return TextPosition(
-          offset: result.offset + child.getContainer().getOffset());
+      return TextPosition(offset: result.offset + child.getContainer().offset);
     }
 
-    RenderEditableBox? sibling = childAfter(child);
+    final sibling = childAfter(child);
     if (sibling == null) {
       return null;
     }
 
-    Offset caretOffset = child.getOffsetForCaret(childLocalPosition);
-    Offset testOffset = sibling.getOffsetForCaret(TextPosition(offset: 0));
-    Offset finalOffset = Offset(caretOffset.dx, testOffset.dy);
+    final caretOffset = child.getOffsetForCaret(childLocalPosition);
+    final testOffset = sibling.getOffsetForCaret(const TextPosition(offset: 0));
+    final finalOffset = Offset(caretOffset.dx, testOffset.dy);
     return TextPosition(
-        offset: sibling.getContainer().getOffset() +
+        offset: sibling.getContainer().offset +
             sibling.getPositionForOffset(finalOffset).offset);
   }
 
   @override
   double preferredLineHeight(TextPosition position) {
-    RenderEditableBox child = childAtPosition(position);
-    return child.preferredLineHeight(TextPosition(
-        offset: position.offset - child.getContainer().getOffset()));
+    final child = childAtPosition(position);
+    return child.preferredLineHeight(
+        TextPosition(offset: position.offset - child.getContainer().offset));
   }
 
   @override
   TextSelectionPoint getBaseEndpointForSelection(TextSelection selection) {
     if (selection.isCollapsed) {
       return TextSelectionPoint(
-          Offset(0.0, preferredLineHeight(selection.extent)) +
+          Offset(0, preferredLineHeight(selection.extent)) +
               getOffsetForCaret(selection.extent),
           null);
     }
 
-    Node? baseNode = getContainer().queryChild(selection.start, false).node;
+    final baseNode = getContainer().queryChild(selection.start, false).node;
     var baseChild = firstChild;
     while (baseChild != null) {
       if (baseChild.getContainer() == baseNode) {
@@ -435,7 +451,7 @@ class RenderEditableTextBlock extends RenderEditableContainerBox
     }
     assert(baseChild != null);
 
-    TextSelectionPoint basePoint = baseChild!.getBaseEndpointForSelection(
+    final basePoint = baseChild!.getBaseEndpointForSelection(
         localSelection(baseChild.getContainer(), selection, true));
     return TextSelectionPoint(
         basePoint.point + (baseChild.parentData as BoxParentData).offset,
@@ -446,12 +462,12 @@ class RenderEditableTextBlock extends RenderEditableContainerBox
   TextSelectionPoint getExtentEndpointForSelection(TextSelection selection) {
     if (selection.isCollapsed) {
       return TextSelectionPoint(
-          Offset(0.0, preferredLineHeight(selection.extent)) +
+          Offset(0, preferredLineHeight(selection.extent)) +
               getOffsetForCaret(selection.extent),
           null);
     }
 
-    Node? extentNode = getContainer().queryChild(selection.end, false).node;
+    final extentNode = getContainer().queryChild(selection.end, false).node;
 
     var extentChild = firstChild;
     while (extentChild != null) {
@@ -462,7 +478,7 @@ class RenderEditableTextBlock extends RenderEditableContainerBox
     }
     assert(extentChild != null);
 
-    TextSelectionPoint extentPoint = extentChild!.getExtentEndpointForSelection(
+    final extentPoint = extentChild!.getExtentEndpointForSelection(
         localSelection(extentChild.getContainer(), selection, true));
     return TextSelectionPoint(
         extentPoint.point + (extentChild.parentData as BoxParentData).offset,
@@ -478,25 +494,25 @@ class RenderEditableTextBlock extends RenderEditableContainerBox
   }
 
   @override
-  paint(PaintingContext context, Offset offset) {
+  void paint(PaintingContext context, Offset offset) {
     _paintDecoration(context, offset);
     defaultPaint(context, offset);
   }
 
-  _paintDecoration(PaintingContext context, Offset offset) {
+  void _paintDecoration(PaintingContext context, Offset offset) {
     _painter ??= _decoration.createBoxPainter(markNeedsPaint);
 
-    EdgeInsets decorationPadding = resolvedPadding! - _contentPadding;
+    final decorationPadding = resolvedPadding! - _contentPadding;
 
-    ImageConfiguration filledConfiguration =
+    final filledConfiguration =
         configuration.copyWith(size: decorationPadding.deflateSize(size));
-    int debugSaveCount = context.canvas.getSaveCount();
+    final debugSaveCount = context.canvas.getSaveCount();
 
     final decorationOffset =
         offset.translate(decorationPadding.left, decorationPadding.top);
     _painter!.paint(context.canvas, decorationOffset, filledConfiguration);
     if (debugSaveCount != context.canvas.getSaveCount()) {
-      throw ('${_decoration.runtimeType} painter had mismatching save and restore calls.');
+      throw '${_decoration.runtimeType} painter had mismatching save and restore calls.';
     }
     if (decoration.isComplex) {
       context.setIsComplexHint();
@@ -510,15 +526,22 @@ class RenderEditableTextBlock extends RenderEditableContainerBox
 }
 
 class _EditableBlock extends MultiChildRenderObjectWidget {
+  _EditableBlock(
+      this.block,
+      this.textDirection,
+      this.padding,
+      this.scrollBottomInset,
+      this.decoration,
+      this.contentPadding,
+      List<Widget> children)
+      : super(children: children);
+
   final Block block;
   final TextDirection textDirection;
   final Tuple2<double, double> padding;
+  final double scrollBottomInset;
   final Decoration decoration;
   final EdgeInsets? contentPadding;
-
-  _EditableBlock(this.block, this.textDirection, this.padding, this.decoration,
-      this.contentPadding, List<Widget> children)
-      : super(children: children);
 
   EdgeInsets get _padding =>
       EdgeInsets.only(top: padding.item1, bottom: padding.item2);
@@ -531,6 +554,7 @@ class _EditableBlock extends MultiChildRenderObjectWidget {
       block: block,
       textDirection: textDirection,
       padding: _padding,
+      scrollBottomInset: scrollBottomInset,
       decoration: decoration,
       contentPadding: _contentPadding,
     );
@@ -539,15 +563,29 @@ class _EditableBlock extends MultiChildRenderObjectWidget {
   @override
   void updateRenderObject(
       BuildContext context, covariant RenderEditableTextBlock renderObject) {
-    renderObject.setContainer(block);
-    renderObject.textDirection = textDirection;
-    renderObject.setPadding(_padding);
-    renderObject.decoration = decoration;
-    renderObject.contentPadding = _contentPadding;
+    renderObject
+      ..setContainer(block)
+      ..textDirection = textDirection
+      ..scrollBottomInset = scrollBottomInset
+      ..setPadding(_padding)
+      ..decoration = decoration
+      ..contentPadding = _contentPadding;
   }
 }
 
 class _NumberPoint extends StatelessWidget {
+  const _NumberPoint({
+    required this.index,
+    required this.indentLevelCounts,
+    required this.count,
+    required this.style,
+    required this.width,
+    required this.attrs,
+    this.withDot = true,
+    this.padding = 0.0,
+    Key? key,
+  }) : super(key: key);
+
   final int index;
   final Map<int?, int> indentLevelCounts;
   final int count;
@@ -557,45 +595,33 @@ class _NumberPoint extends StatelessWidget {
   final bool withDot;
   final double padding;
 
-  const _NumberPoint({
-    Key? key,
-    required this.index,
-    required this.indentLevelCounts,
-    required this.count,
-    required this.style,
-    required this.width,
-    required this.attrs,
-    this.withDot = true,
-    this.padding = 0.0,
-  }) : super(key: key);
-
   @override
   Widget build(BuildContext context) {
-    String s = this.index.toString();
+    var s = index.toString();
     int? level = 0;
-    if (!this.attrs.containsKey(Attribute.indent.key) &&
-        !this.indentLevelCounts.containsKey(1)) {
-      this.indentLevelCounts.clear();
+    if (!attrs.containsKey(Attribute.indent.key) &&
+        !indentLevelCounts.containsKey(1)) {
+      indentLevelCounts.clear();
       return Container(
         alignment: AlignmentDirectional.topEnd,
-        child: Text(withDot ? '$s.' : '$s', style: style),
         width: width,
         padding: EdgeInsetsDirectional.only(end: padding),
+        child: Text(withDot ? '$s.' : s, style: style),
       );
     }
-    if (this.attrs.containsKey(Attribute.indent.key)) {
-      level = this.attrs[Attribute.indent.key]!.value;
+    if (attrs.containsKey(Attribute.indent.key)) {
+      level = attrs[Attribute.indent.key]!.value;
     } else {
       // first level but is back from previous indent level
       // supposed to be "2."
-      this.indentLevelCounts[0] = 1;
+      indentLevelCounts[0] = 1;
     }
-    if (this.indentLevelCounts.containsKey(level! + 1)) {
+    if (indentLevelCounts.containsKey(level! + 1)) {
       // last visited level is done, going up
-      this.indentLevelCounts.remove(level + 1);
+      indentLevelCounts.remove(level + 1);
     }
-    int count = (this.indentLevelCounts[level] ?? 0) + 1;
-    this.indentLevelCounts[level] = count;
+    final count = (indentLevelCounts[level] ?? 0) + 1;
+    indentLevelCounts[level] = count;
 
     s = count.toString();
     if (level % 3 == 1) {
@@ -609,9 +635,9 @@ class _NumberPoint extends StatelessWidget {
 
     return Container(
       alignment: AlignmentDirectional.topEnd,
-      child: Text(withDot ? '$s.' : '$s', style: style),
       width: width,
       padding: EdgeInsetsDirectional.only(end: padding),
+      child: Text(withDot ? '$s.' : s, style: style),
     );
   }
 
@@ -623,16 +649,16 @@ class _NumberPoint extends StatelessWidget {
       n = (n / 26).floor();
     }
 
-    return result.toString().split('').reversed.join('');
+    return result.toString().split('').reversed.join();
   }
 
   String _intToRoman(int input) {
     var num = input;
 
     if (num < 0) {
-      return "";
+      return '';
     } else if (num == 0) {
-      return "nulla";
+      return 'nulla';
     }
 
     final builder = StringBuffer();
@@ -652,66 +678,60 @@ class _NumberPoint extends StatelessWidget {
 }
 
 class _BulletPoint extends StatelessWidget {
-  final TextStyle style;
-  final double width;
-
   const _BulletPoint({
-    Key? key,
     required this.style,
     required this.width,
+    Key? key,
   }) : super(key: key);
+
+  final TextStyle style;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       alignment: AlignmentDirectional.topEnd,
-      child: Text('•', style: style),
       width: width,
-      padding: EdgeInsetsDirectional.only(end: 13.0),
+      padding: const EdgeInsetsDirectional.only(end: 13),
+      child: Text('•', style: style),
     );
   }
 }
 
-class _Checkbox extends StatefulWidget {
+class _Checkbox extends StatelessWidget {
+  const _Checkbox({
+    Key? key,
+    this.style,
+    this.width,
+    this.isChecked = false,
+    this.offset,
+    this.onTap,
+  }) : super(key: key);
   final TextStyle? style;
   final double? width;
-  final bool? isChecked;
+  final bool isChecked;
+  final int? offset;
+  final Function(int, bool)? onTap;
 
-  const _Checkbox({Key? key, this.style, this.width, this.isChecked})
-      : super(key: key);
-  @override
-  __CheckboxState createState() => __CheckboxState();
-}
-
-class __CheckboxState extends State<_Checkbox> {
-  bool? isChecked;
-
-  void _onCheckboxClicked(bool? newValue) => setState(() {
-        isChecked = newValue;
-
-        if (isChecked!) {
-          // check list
-        } else {
-          // uncheck list
-        }
-      });
-
-  @override
-  void initState() {
-    super.initState();
-    isChecked = widget.isChecked;
+  void _onCheckboxClicked(bool? newValue) {
+    if (onTap != null && newValue != null && offset != null) {
+      onTap!(offset!, newValue);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       alignment: AlignmentDirectional.topEnd,
-      child: Checkbox(
-        value: widget.isChecked,
-        onChanged: _onCheckboxClicked,
+      width: width,
+      padding: const EdgeInsetsDirectional.only(end: 13),
+      child: GestureDetector(
+        onLongPress: () => _onCheckboxClicked(!isChecked),
+        child: Checkbox(
+          value: isChecked,
+          onChanged: _onCheckboxClicked,
+        ),
       ),
-      width: widget.width,
-      padding: EdgeInsetsDirectional.only(end: 13.0),
     );
   }
 }
