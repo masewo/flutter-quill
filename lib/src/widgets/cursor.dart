@@ -243,9 +243,12 @@ class CursorPainter {
   final double devicePixelRatio;
 
   /// Paints cursor on [canvas] at specified [position].
+  /// [offset] is global top left (x, y) of text line
+  /// [position] is relative (x) in text line
   void paint(Canvas canvas, Offset offset, TextPosition position) {
     final caretOffset =
         editable!.getOffsetForCaret(position, prototype) + offset;
+
     var caretRect = prototype.shift(caretOffset);
     if (style.offset != null) {
       caretRect = caretRect.shift(style.offset!);
@@ -292,8 +295,7 @@ class CursorPainter {
       }
     }
 
-    final pixelPerfectOffset =
-        _getPixelPerfectCursorOffset(editable!, caretRect, devicePixelRatio);
+    final pixelPerfectOffset = _getPixelPerfectCursorOffset(caretRect);
     if (!pixelPerfectOffset.isFinite) {
       return;
     }
@@ -309,11 +311,9 @@ class CursorPainter {
   }
 
   Offset _getPixelPerfectCursorOffset(
-    RenderContentProxyBox editable,
     Rect caretRect,
-    double devicePixelRatio,
   ) {
-    final caretPosition = editable.localToGlobal(caretRect.topLeft);
+    final caretPosition = editable!.localToGlobal(caretRect.topLeft);
     final pixelMultiple = 1.0 / devicePixelRatio;
 
     final pixelPerfectOffsetX = caretPosition.dx.isFinite
