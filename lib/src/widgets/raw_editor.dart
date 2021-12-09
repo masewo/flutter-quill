@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -20,8 +21,9 @@ import 'cursor.dart';
 import 'default_styles.dart';
 import 'delegate.dart';
 import 'editor.dart';
-import 'quill_keyboard_listener.dart';
+import 'keyboard_listener.dart';
 import 'proxy.dart';
+import 'quill_single_child_scroll_view.dart';
 import 'raw_editor/raw_editor_state_keyboard_mixin.dart';
 import 'raw_editor/raw_editor_state_selection_delegate_mixin.dart';
 import 'raw_editor/raw_editor_state_text_input_client_mixin.dart';
@@ -30,41 +32,45 @@ import 'text_line.dart';
 import 'text_selection.dart';
 
 class RawEditor extends StatefulWidget {
-  const RawEditor(
-    Key key,
-    this.controller,
-    this.focusNode,
-    this.scrollController,
-    this.scrollable,
-    this.scrollBottomInset,
-    this.padding,
-    this.readOnly,
+  const RawEditor({
+    required this.controller,
+    required this.focusNode,
+    required this.scrollController,
+    required this.scrollBottomInset,
+    required this.cursorStyle,
+    required this.selectionColor,
+    required this.selectionCtrls,
+    Key? key,
+    this.scrollable = true,
+    this.padding = EdgeInsets.zero,
+    this.readOnly = false,
     this.placeholder,
     this.onLaunchUrl,
-    this.toolbarOptions,
-    this.showSelectionHandles,
+    this.toolbarOptions = const ToolbarOptions(
+      copy: true,
+      cut: true,
+      paste: true,
+      selectAll: true,
+    ),
+    this.showSelectionHandles = false,
     bool? showCursor,
-    this.cursorStyle,
-    this.textCapitalization,
+    this.textCapitalization = TextCapitalization.none,
     this.maxHeight,
     this.minHeight,
     this.customStyles,
-    this.expands,
-    this.autoFocus,
-    this.selectionColor,
-    this.selectionCtrls,
-    this.keyboardAppearance,
-    this.enableInteractiveSelection,
+    this.expands = false,
+    this.autoFocus = false,
+    this.keyboardAppearance = Brightness.light,
+    this.enableInteractiveSelection = true,
     this.scrollPhysics,
-    this.embedBuilder,
+    this.embedBuilder = defaultEmbedBuilder,
     this.customStyleBuilder,
-  )   : assert(maxHeight == null || maxHeight > 0, 'maxHeight cannot be null'),
+  })  : assert(maxHeight == null || maxHeight > 0, 'maxHeight cannot be null'),
         assert(minHeight == null || minHeight >= 0, 'minHeight cannot be null'),
         assert(maxHeight == null || minHeight == null || maxHeight >= minHeight,
-            'maxHeight cannot be null'),
+        'maxHeight cannot be null'),
         showCursor = showCursor ?? true,
         super(key: key);
-
   final QuillController controller;
   final FocusNode focusNode;
   final ScrollController scrollController;
@@ -106,7 +112,7 @@ class RawEditorState extends EditorState
   final GlobalKey _editorKey = GlobalKey();
 
   // Keyboard
-  late QuillKeyboardListener _keyboardListener;
+  late KeyboardEventHandler _keyboardListener;
   KeyboardVisibilityController? _keyboardVisibilityController;
   StreamSubscription<bool>? _keyboardVisibilitySubscription;
   bool _keyboardVisible = false;
@@ -169,14 +175,30 @@ class RawEditorState extends EditorState
 
     if (widget.scrollable) {
       final baselinePadding =
-          EdgeInsets.only(top: _styles!.paragraph!.verticalSpacing.item1);
+      EdgeInsets.only(top: _styles!.paragraph!.verticalSpacing.item1);
       child = BaselineProxy(
         textStyle: _styles!.paragraph!.style,
         padding: baselinePadding,
-        child: SingleChildScrollView(
+        child: QuillSingleChildScrollView(
           controller: _scrollController,
           physics: widget.scrollPhysics,
-          child: child,
+          viewportBuilder: (_, offset) => CompositedTransformTarget(
+            link: _toolbarLayerLink,
+            child: _Editor(
+              key: _editorKey,
+              offset: offset,
+              document: widget.controller.document,
+              selection: widget.controller.selection,
+              hasFocus: _hasFocus,
+              textDirection: _textDirection,
+              startHandleLayerLink: _startHandleLayerLink,
+              endHandleLayerLink: _endHandleLayerLink,
+              onSelectionChanged: _handleSelectionChanged,
+              scrollBottomInset: widget.scrollBottomInset,
+              padding: widget.padding,
+              children: _buildChildren(_doc, context),
+            ),
+          ),
         ),
       );
     }
@@ -184,8 +206,8 @@ class RawEditorState extends EditorState
     final constraints = widget.expands
         ? const BoxConstraints.expand()
         : BoxConstraints(
-            minHeight: widget.minHeight ?? 0.0,
-            maxHeight: widget.maxHeight ?? double.infinity);
+        minHeight: widget.minHeight ?? 0.0,
+        maxHeight: widget.maxHeight ?? double.infinity);
 
     return QuillStyles(
       data: _styles!,
@@ -340,7 +362,7 @@ class RawEditorState extends EditorState
       tickerProvider: this,
     );
 
-    _keyboardListener = QuillKeyboardListener(
+    _keyboardListener = KeyboardEventHandler(
       handleCursorMovement,
       handleShortcut,
       handleDelete,
@@ -356,11 +378,11 @@ class RawEditorState extends EditorState
       _keyboardVisible = _keyboardVisibilityController!.isVisible;
       _keyboardVisibilitySubscription =
           _keyboardVisibilityController?.onChange.listen((visible) {
-        _keyboardVisible = visible;
-        if (visible) {
-          _onChangeTextEditingValue();
-        }
-      });
+            _keyboardVisible = visible;
+            if (visible) {
+              _onChangeTextEditingValue();
+            }
+          });
     }
 
     _focusAttachment = widget.focusNode.attach(context,
@@ -578,7 +600,7 @@ class RawEditorState extends EditorState
 
         final viewport = RenderAbstractViewport.of(renderEditor);
         final editorOffset =
-            renderEditor.localToGlobal(const Offset(0, 0), ancestor: viewport);
+        renderEditor.localToGlobal(const Offset(0, 0), ancestor: viewport);
         final offsetInViewport = _scrollController.offset + editorOffset.dy;
 
         final offset = renderEditor.getOffsetToRevealCursor(
@@ -589,7 +611,7 @@ class RawEditorState extends EditorState
 
         if (offset != null) {
           _scrollController.animateTo(
-            offset,
+            math.min(offset, _scrollController.position.maxScrollExtent),
             duration: const Duration(milliseconds: 100),
             curve: Curves.fastOutSlowIn,
           );
@@ -716,8 +738,10 @@ class _Editor extends MultiChildRenderObjectWidget {
     required this.onSelectionChanged,
     required this.scrollBottomInset,
     this.padding = EdgeInsets.zero,
+    this.offset,
   }) : super(key: key, children: children);
 
+  final ViewportOffset? offset;
   final Document document;
   final TextDirection textDirection;
   final bool hasFocus;
@@ -731,6 +755,7 @@ class _Editor extends MultiChildRenderObjectWidget {
   @override
   RenderEditor createRenderObject(BuildContext context) {
     return RenderEditor(
+      offset,
       null,
       textDirection,
       scrollBottomInset,
@@ -749,6 +774,7 @@ class _Editor extends MultiChildRenderObjectWidget {
   void updateRenderObject(
       BuildContext context, covariant RenderEditor renderObject) {
     renderObject
+      ..offset = offset
       ..document = document
       ..setContainer(document.root)
       ..textDirection = textDirection

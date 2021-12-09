@@ -184,6 +184,7 @@ class TextLine extends StatelessWidget {
     final style = textNode.style;
     var res = const TextStyle(); // This is inline text style
     final color = textNode.style.attributes[Attribute.color.key];
+    var hasLink = false;
 
     <String, TextStyle?>{
       Attribute.bold.key: defaultStyles.bold,
@@ -192,6 +193,7 @@ class TextLine extends StatelessWidget {
       Attribute.link.key: defaultStyles.link,
       Attribute.underline.key: defaultStyles.underline,
       Attribute.strikeThrough.key: defaultStyles.strikeThrough,
+      Attribute.inlineCode.key: defaultStyles.inlineCode,
     }.forEach((k, s) {
       if (style.values.any((v) => v.key == k)) {
         if (k == Attribute.underline.key || k == Attribute.strikeThrough.key) {
@@ -202,6 +204,9 @@ class TextLine extends StatelessWidget {
           res = _merge(res.copyWith(decorationColor: textColor),
               s!.copyWith(decorationColor: textColor));
         } else {
+          if (k == Attribute.link.key) {
+            hasLink = true;
+          }
           res = _merge(res, s!);
         }
       }
@@ -225,7 +230,14 @@ class TextLine extends StatelessWidget {
           res = res.merge(defaultStyles.sizeHuge);
           break;
         default:
-          final fontSize = double.tryParse(size.value);
+          double? fontSize;
+          if (size.value is double) {
+            fontSize = size.value;
+          } else if (size.value is int) {
+            fontSize = size.value.toDouble();
+          } else if (size.value is String) {
+            fontSize = double.tryParse(size.value);
+          }
           if (fontSize != null) {
             res = res.merge(TextStyle(fontSize: fontSize));
           } else {
@@ -251,6 +263,13 @@ class TextLine extends StatelessWidget {
     }
 
     res = _applyCustomAttributes(res, textNode.style.attributes);
+    if (hasLink && readOnly) {
+      return TextSpan(
+        text: textNode.value,
+        style: res,
+        mouseCursor: SystemMouseCursors.click,
+      );
+    }
     return TextSpan(text: textNode.value, style: res);
   }
 
@@ -412,7 +431,7 @@ class RenderEditableTextLine extends RenderEditableBox {
 
     color = c;
     if (containsTextSelection()) {
-      markNeedsPaint();
+      safeMarkNeedsPaint();
     }
   }
 
@@ -424,7 +443,7 @@ class RenderEditableTextLine extends RenderEditableBox {
     final containsSelection = containsTextSelection();
     if (attached && containsCursor()) {
       cursorCont.removeListener(markNeedsLayout);
-      cursorCont.color.removeListener(markNeedsPaint);
+      cursorCont.color.removeListener(safeMarkNeedsPaint);
     }
 
     textSelection = t;
@@ -432,11 +451,11 @@ class RenderEditableTextLine extends RenderEditableBox {
     _containsCursor = null;
     if (attached && containsCursor()) {
       cursorCont.addListener(markNeedsLayout);
-      cursorCont.color.addListener(markNeedsPaint);
+      cursorCont.color.addListener(safeMarkNeedsPaint);
     }
 
     if (containsSelection || containsTextSelection()) {
-      markNeedsPaint();
+      safeMarkNeedsPaint();
     }
   }
 
@@ -578,6 +597,9 @@ class RenderEditableTextLine extends RenderEditableBox {
     return _getPosition(position, 1.5);
   }
 
+  @override
+  bool get isRepaintBoundary => true;
+
   TextPosition? _getPosition(TextPosition textPosition, double dyScale) {
     assert(textPosition.offset < line.length);
     final offset = getOffsetForCaret(textPosition)
@@ -641,7 +663,7 @@ class RenderEditableTextLine extends RenderEditableBox {
     }
     if (containsCursor()) {
       cursorCont.addListener(markNeedsLayout);
-      cursorCont.color.addListener(markNeedsPaint);
+      cursorCont.color.addListener(safeMarkNeedsPaint);
     }
   }
 
@@ -653,7 +675,7 @@ class RenderEditableTextLine extends RenderEditableBox {
     }
     if (containsCursor()) {
       cursorCont.removeListener(markNeedsLayout);
-      cursorCont.color.removeListener(markNeedsPaint);
+      cursorCont.color.removeListener(safeMarkNeedsPaint);
     }
   }
 
@@ -811,21 +833,12 @@ class RenderEditableTextLine extends RenderEditableBox {
     if (_body != null) {
       final parentData = _body!.parentData as BoxParentData;
       final effectiveOffset = offset + parentData.offset;
-      if (enableInteractiveSelection &&
-          line.documentOffset <= textSelection.end &&
-          textSelection.start <= line.documentOffset + line.length - 1) {
-        final local = localSelection(line, textSelection, false);
-        _selectedRects ??= _body!.getBoxesForSelection(
-          local,
-        );
-        _paintSelection(context, effectiveOffset);
-      }
 
       if (hasFocus &&
           cursorCont.show.value &&
           containsCursor() &&
           !cursorCont.style.paintAboveText) {
-        _paintCursor(context, effectiveOffset);
+        _paintCursor(context, effectiveOffset, line.hasEmbed);
       }
 
       context.paintChild(_body!, effectiveOffset);
@@ -834,7 +847,18 @@ class RenderEditableTextLine extends RenderEditableBox {
           cursorCont.show.value &&
           containsCursor() &&
           cursorCont.style.paintAboveText) {
-        _paintCursor(context, effectiveOffset);
+        _paintCursor(context, effectiveOffset, line.hasEmbed);
+      }
+
+      // paint the selection on the top
+      if (enableInteractiveSelection &&
+          line.documentOffset <= textSelection.end &&
+          textSelection.start <= line.documentOffset + line.length - 1) {
+        final local = localSelection(line, textSelection, false);
+        _selectedRects ??= _body!.getBoxesForSelection(
+          local,
+        );
+        _paintSelection(context, effectiveOffset);
       }
     }
   }
@@ -847,17 +871,26 @@ class RenderEditableTextLine extends RenderEditableBox {
     }
   }
 
-  void _paintCursor(PaintingContext context, Offset effectiveOffset) {
+  void _paintCursor(
+      PaintingContext context, Offset effectiveOffset, bool lineHasEmbed) {
     final position = TextPosition(
       offset: textSelection.extentOffset - line.documentOffset,
       affinity: textSelection.base.affinity,
     );
-    _cursorPainter.paint(context.canvas, effectiveOffset, position);
+    _cursorPainter.paint(
+        context.canvas, effectiveOffset, position, lineHasEmbed);
   }
 
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    return _children.first.hitTest(result, position: position);
+    if (_body == null) return false;
+    final parentData = _body!.parentData as BoxParentData;
+    return result.addWithPaintOffset(
+        offset: parentData.offset,
+        position: position,
+        hitTest: (result, position) {
+          return _body!.hitTest(result, position: position);
+        });
   }
 
   @override
@@ -879,6 +912,14 @@ class RenderEditableTextLine extends RenderEditableBox {
       offset: position.offset - getContainer().documentOffset,
       affinity: position.affinity,
     );
+  }
+
+  void safeMarkNeedsPaint() {
+    if (!attached) {
+      //Should not paint if it was unattached.
+      return;
+    }
+    markNeedsPaint();
   }
 }
 
