@@ -145,7 +145,7 @@ String _standardizeImageUrl(String url) {
 
 bool _isMobile() => io.Platform.isAndroid || io.Platform.isIOS;
 
-Widget _defaultEmbedBuilder(
+Widget defaultEmbedBuilder(
     BuildContext context, leaf.Embed node, bool readOnly) {
   assert(!kIsWeb, 'Please provide EmbedBuilder for Web');
   switch (node.value.type) {
@@ -165,33 +165,7 @@ Widget _defaultEmbedBuilder(
           final m = _attrs['mobileMargin'] == null
               ? 0.0
               : double.parse(_attrs['mobileMargin']!);
-          var a = Alignment.center;
-          if (_attrs['mobileAlignment'] != null) {
-            final _index = [
-              'topLeft',
-              'topCenter',
-              'topRight',
-              'centerLeft',
-              'center',
-              'centerRight',
-              'bottomLeft',
-              'bottomCenter',
-              'bottomRight'
-            ].indexOf(_attrs['mobileAlignment']!);
-            if (_index >= 0) {
-              a = [
-                Alignment.topLeft,
-                Alignment.topCenter,
-                Alignment.topRight,
-                Alignment.centerLeft,
-                Alignment.center,
-                Alignment.centerRight,
-                Alignment.bottomLeft,
-                Alignment.bottomCenter,
-                Alignment.bottomRight
-              ][_index];
-            }
-          }
+          final a = getAlignment(_attrs['mobileAlignment']);
           return Padding(
               padding: EdgeInsets.all(m),
               child: imageUrl.startsWith('http')
@@ -251,23 +225,26 @@ class QuillEditor extends StatefulWidget {
       this.onSingleLongTapStart,
       this.onSingleLongTapMoveUpdate,
       this.onSingleLongTapEnd,
-      this.embedBuilder = _defaultEmbedBuilder,
+      this.embedBuilder = defaultEmbedBuilder,
       this.customStyleBuilder,
       Key? key});
 
   factory QuillEditor.basic({
     required QuillController controller,
     required bool readOnly,
+    Brightness? keyboardAppearance,
   }) {
     return QuillEditor(
-        controller: controller,
-        scrollController: ScrollController(),
-        scrollable: true,
-        focusNode: FocusNode(),
-        autoFocus: true,
-        readOnly: readOnly,
-        expands: false,
-        padding: EdgeInsets.zero);
+      controller: controller,
+      scrollController: ScrollController(),
+      scrollable: true,
+      focusNode: FocusNode(),
+      autoFocus: true,
+      readOnly: readOnly,
+      expands: false,
+      padding: EdgeInsets.zero,
+      keyboardAppearance: keyboardAppearance ?? Brightness.light,
+    );
   }
 
   final QuillController controller;
@@ -374,51 +351,53 @@ class _QuillEditorState extends State<QuillEditor>
         throw UnimplementedError();
     }
 
+    final child = RawEditor(
+      key: _editorKey,
+      controller: widget.controller,
+      focusNode: widget.focusNode,
+      scrollController: widget.scrollController,
+      scrollable: widget.scrollable,
+      scrollBottomInset: widget.scrollBottomInset,
+      padding: widget.padding,
+      readOnly: widget.readOnly,
+      placeholder: widget.placeholder,
+      onLaunchUrl: widget.onLaunchUrl,
+      toolbarOptions: ToolbarOptions(
+        copy: widget.enableInteractiveSelection,
+        cut: widget.enableInteractiveSelection,
+        paste: widget.enableInteractiveSelection,
+        selectAll: widget.enableInteractiveSelection,
+      ),
+      showSelectionHandles: theme.platform == TargetPlatform.iOS ||
+          theme.platform == TargetPlatform.android,
+      showCursor: widget.showCursor,
+      cursorStyle: CursorStyle(
+        color: cursorColor,
+        backgroundColor: Colors.grey,
+        width: 2,
+        radius: cursorRadius,
+        offset: cursorOffset,
+        paintAboveText: widget.paintCursorAboveText ?? paintCursorAboveText,
+        opacityAnimates: cursorOpacityAnimates,
+      ),
+      textCapitalization: widget.textCapitalization,
+      minHeight: widget.minHeight,
+      maxHeight: widget.maxHeight,
+      customStyles: widget.customStyles,
+      expands: widget.expands,
+      autoFocus: widget.autoFocus,
+      selectionColor: selectionColor,
+      selectionCtrls: textSelectionControls,
+      keyboardAppearance: widget.keyboardAppearance,
+      enableInteractiveSelection: widget.enableInteractiveSelection,
+      scrollPhysics: widget.scrollPhysics,
+      embedBuilder: widget.embedBuilder,
+      customStyleBuilder: widget.customStyleBuilder,
+    );
+
     return _selectionGestureDetectorBuilder.build(
       HitTestBehavior.translucent,
-      RawEditor(
-        _editorKey,
-        widget.controller,
-        widget.focusNode,
-        widget.scrollController,
-        widget.scrollable,
-        widget.scrollBottomInset,
-        widget.padding,
-        widget.readOnly,
-        widget.placeholder,
-        widget.onLaunchUrl,
-        ToolbarOptions(
-          copy: widget.enableInteractiveSelection,
-          cut: widget.enableInteractiveSelection,
-          paste: widget.enableInteractiveSelection,
-          selectAll: widget.enableInteractiveSelection,
-        ),
-        theme.platform == TargetPlatform.iOS ||
-            theme.platform == TargetPlatform.android,
-        widget.showCursor,
-        CursorStyle(
-          color: cursorColor,
-          backgroundColor: Colors.grey,
-          width: 2,
-          radius: cursorRadius,
-          offset: cursorOffset,
-          paintAboveText: widget.paintCursorAboveText ?? paintCursorAboveText,
-          opacityAnimates: cursorOpacityAnimates,
-        ),
-        widget.textCapitalization,
-        widget.maxHeight,
-        widget.minHeight,
-        widget.customStyles,
-        widget.expands,
-        widget.autoFocus,
-        selectionColor,
-        textSelectionControls,
-        widget.keyboardAppearance,
-        widget.enableInteractiveSelection,
-        widget.scrollPhysics,
-        widget.embedBuilder,
-        widget.customStyleBuilder,
-      ),
+      child,
     );
   }
 
@@ -672,6 +651,7 @@ typedef TextSelectionChangedHandler = void Function(
 class RenderEditor extends RenderEditableContainerBox
     implements RenderAbstractEditor {
   RenderEditor(
+    ViewportOffset? offset,
     List<RenderEditableBox>? children,
     TextDirection textDirection,
     double scrollBottomInset,
@@ -706,6 +686,41 @@ class RenderEditor extends RenderEditableContainerBox
   ValueListenable<bool> get selectionEndInViewport => _selectionEndInViewport;
   final ValueNotifier<bool> _selectionEndInViewport = ValueNotifier<bool>(true);
 
+  void _updateSelectionExtentsVisibility(Offset effectiveOffset) {
+    final visibleRegion = Offset.zero & size;
+    final startPosition =
+        TextPosition(offset: selection.start, affinity: selection.affinity);
+    final startOffset = _getOffsetForCaret(startPosition);
+    // TODO(justinmc): https://github.com/flutter/flutter/issues/31495
+    // Check if the selection is visible with an approximation because a
+    // difference between rounded and unrounded values causes the caret to be
+    // reported as having a slightly (< 0.5) negative y offset. This rounding
+    // happens in paragraph.cc's layout and TextPainer's
+    // _applyFloatingPointHack. Ideally, the rounding mismatch will be fixed and
+    // this can be changed to be a strict check instead of an approximation.
+    const visibleRegionSlop = 0.5;
+    _selectionStartInViewport.value = visibleRegion
+        .inflate(visibleRegionSlop)
+        .contains(startOffset + effectiveOffset);
+
+    final endPosition =
+        TextPosition(offset: selection.end, affinity: selection.affinity);
+    final endOffset = _getOffsetForCaret(endPosition);
+    _selectionEndInViewport.value = visibleRegion
+        .inflate(visibleRegionSlop)
+        .contains(endOffset + effectiveOffset);
+  }
+
+  // returns offset relative to this at which the caret will be painted
+  // given a global TextPosition
+  Offset _getOffsetForCaret(TextPosition position) {
+    final child = childAtPosition(position);
+    final childPosition = child.globalToLocalPosition(position);
+    final boxParentData = child.parentData as BoxParentData;
+    final localOffsetForCaret = child.getOffsetForCaret(childPosition);
+    return boxParentData.offset + localOffsetForCaret;
+  }
+
   void setDocument(Document doc) {
     if (document == doc) {
       return;
@@ -720,6 +735,19 @@ class RenderEditor extends RenderEditableContainerBox
     }
     _hasFocus = h;
     markNeedsSemanticsUpdate();
+  }
+
+  Offset get _paintOffset => Offset(0, -(offset?.pixels ?? 0.0));
+
+  ViewportOffset? get offset => _offset;
+  ViewportOffset? _offset;
+
+  set offset(ViewportOffset? value) {
+    if (_offset == value) return;
+    if (attached) _offset?.removeListener(markNeedsPaint);
+    _offset = value;
+    if (attached) _offset?.addListener(markNeedsPaint);
+    markNeedsLayout();
   }
 
   void setSelection(TextSelection t) {
@@ -955,6 +983,7 @@ class RenderEditor extends RenderEditableContainerBox
   @override
   void paint(PaintingContext context, Offset offset) {
     defaultPaint(context, offset);
+    _updateSelectionExtentsVisibility(offset + _paintOffset);
     _paintHandleLayers(context, getEndpointsForSelection(selection));
   }
 
@@ -1139,7 +1168,11 @@ class RenderEditableContainerBox extends RenderBox
       if (targetChild.getContainer() == targetNode) {
         break;
       }
-      targetChild = childAfter(targetChild);
+      final newChild = childAfter(targetChild);
+      if (newChild == null) {
+        break;
+      }
+      targetChild = newChild;
     }
     if (targetChild == null) {
       throw 'targetChild should not be null';

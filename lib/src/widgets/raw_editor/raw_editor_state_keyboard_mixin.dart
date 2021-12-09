@@ -76,6 +76,18 @@ mixin RawEditorStateKeyboardMixin on EditorState {
       }
       return;
     }
+    if (shortcut == InputShortcut.UNDO) {
+      if (widget.controller.hasUndo) {
+        widget.controller.undo();
+      }
+      return;
+    }
+    if (shortcut == InputShortcut.REDO) {
+      if (widget.controller.hasRedo) {
+        widget.controller.redo();
+      }
+      return;
+    }
     if (shortcut == InputShortcut.CUT && !widget.readOnly) {
       if (!selection.isCollapsed) {
         final data = selection.textInside(plainText);
@@ -141,12 +153,16 @@ mixin RawEditorStateKeyboardMixin on EditorState {
     final newSelection = TextSelection.collapsed(offset: cursorPosition);
     final newText = textBefore + textAfter;
     final size = plainText.length - newText.length;
-    widget.controller.replaceText(
-      cursorPosition,
-      size,
-      '',
-      newSelection,
-    );
+    if (size == 0) {
+      widget.controller.handleDelete(cursorPosition, forward);
+    } else {
+      widget.controller.replaceText(
+        cursorPosition,
+        size,
+        '',
+        newSelection,
+      );
+    }
   }
 
   TextSelection _jumpToBeginOrEndOfWord(
