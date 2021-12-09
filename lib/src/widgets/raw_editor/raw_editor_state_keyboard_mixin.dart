@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import '../../models/documents/document.dart';
 import '../../utils/diff_delta.dart';
 import '../editor.dart';
-import '../quill_keyboard_listener.dart';
+import '../keyboard_listener.dart';
 
 mixin RawEditorStateKeyboardMixin on EditorState {
   // Holds the last cursor location the user selected in the case the user tries
