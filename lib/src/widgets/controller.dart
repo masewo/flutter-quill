@@ -5,10 +5,10 @@ import 'package:tuple/tuple.dart';
 
 import '../models/documents/attribute.dart';
 import '../models/documents/document.dart';
-import '../models/documents/nodes/embed.dart';
+import '../models/documents/nodes/embeddable.dart';
 import '../models/documents/style.dart';
 import '../models/quill_delta.dart';
-import '../utils/diff_delta.dart';
+import '../utils/delta.dart';
 
 typedef ReplaceTextCallback = bool Function(int index, int len, Object? data);
 typedef DeleteCallback = void Function(int cursorPosition, bool forward);
@@ -20,6 +20,7 @@ class QuillController extends ChangeNotifier {
     bool keepStyleOnNewLine = false,
     this.onReplaceText,
     this.onDelete,
+    this.onSelectionCompleted,
   })  : _selection = selection,
         _keepStyleOnNewLine = keepStyleOnNewLine;
 
@@ -47,6 +48,8 @@ class QuillController extends ChangeNotifier {
 
   /// Custom delete handler
   DeleteCallback? onDelete;
+
+  void Function()? onSelectionCompleted;
 
   /// Store any styles attribute that got toggled by the tap of a button
   /// and that has not been applied yet.
@@ -200,6 +203,8 @@ class QuillController extends ChangeNotifier {
   /// Called in two cases:
   /// forward == false && textBefore.isEmpty
   /// forward == true && textAfter.isEmpty
+  /// Android only
+  /// see https://github.com/singerdmx/flutter-quill/discussions/514
   void handleDelete(int cursorPosition, bool forward) =>
       onDelete?.call(cursorPosition, forward);
 

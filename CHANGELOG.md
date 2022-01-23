@@ -1,3 +1,121 @@
+# [3.7.0]
+* Replace Toolbar showHistory group with individual showRedo and showUndo.
+
+# [3.6.5]
+* Update Link dialogue for image/video.
+
+# [3.6.4]
+* Link dialogue TextInputType.multiline.
+
+# [3.6.3]
+* Bug fix for link button text selection.
+
+# [3.6.2]
+* Improve link button.
+
+# [3.6.1]
+* Remove SnackBar 'What is entered is not a link'.
+
+# [3.6.0]
+* Allow link button to enter text.
+
+# [3.5.3]
+* Change link button behavior.
+
+# [3.5.2]
+* Bug fix for embed.
+
+# [3.5.1]
+* Bug fix for platform util.
+
+# [3.5.0]
+* Removed redundant classes.
+
+# [3.4.4]
+* Add more translations.
+
+# [3.4.3]
+* Preset link from attributes.
+
+# [3.4.2]
+* Fix launch link edit mode.
+
+# [3.4.1]
+* Placeholder effective in scrollable.
+
+# [3.4.0]
+* Option to save image in read-only mode.
+
+# [3.3.1]
+* Pass any specified key in QuillEditor constructor to super.
+
+# [3.3.0]
+* Fixed Style toggle issue.
+
+# [3.2.1]
+* Added new translations.
+
+# [3.2.0]
+* Support multiple links insertion on the go.
+
+# [3.1.1]
+* Add selection completed callback.
+
+# [3.1.0]
+* Fixed image ontap functionality.
+
+# [3.0.4]
+* Add maxContentWidth constraint to editor.
+
+# [3.0.3]
+* Do not show caret on screen when the editor is not focused.
+
+# [3.0.2]
+* Fix launch link for read-only mode.
+
+## [3.0.1]
+* Handle null value of Attribute.link.
+
+## [3.0.0]
+* Launch link improvements.
+* Removed QuillSimpleViewer.
+
+## [2.5.2]
+* Skip image when pasting.
+
+## [2.5.1]
+* Bug fix for Desktop `Shift` + `Click` support.
+
+## [2.5.0]
+* Update checkbox list.
+
+## [2.4.1]
+* Desktop selection improvements.
+
+## [2.4.0]
+* Improve inline code style.
+
+## [2.3.3]
+* Improves selection rects to have consistent height regardless of individual segment text styles.
+
+## [2.3.2]
+* Allow disabling floating cursor.
+
+## [2.3.1]
+* Preserve last newline character on delete.
+
+## [2.3.0]
+* Massive changes to support flutter 2.8.
+
+## [2.2.2]
+* iOS - floating cursor.
+
+## [2.2.1]
+* Bug fix for imports supporting flutter 2.8.
+
+## [2.2.0]
+* Support flutter 2.8.
+
 ## [2.1.1]
 * Add methods of clearing editor and moving cursor.
 
