@@ -39,44 +39,44 @@ import 'text_selection.dart';
 class RawEditor extends StatefulWidget {
   const RawEditor(
       {required this.controller,
-      required this.focusNode,
-      required this.scrollController,
-      required this.scrollBottomInset,
-      required this.cursorStyle,
-      required this.selectionColor,
-      required this.selectionCtrls,
-      Key? key,
-      this.scrollable = true,
-      this.padding = EdgeInsets.zero,
-      this.readOnly = false,
-      this.placeholder,
-      this.onLaunchUrl,
-      this.toolbarOptions = const ToolbarOptions(
-        copy: true,
-        cut: true,
-        paste: true,
-        selectAll: true,
-      ),
-      this.showSelectionHandles = false,
-      bool? showCursor,
-      this.textCapitalization = TextCapitalization.none,
-      this.maxHeight,
-      this.minHeight,
-      this.maxContentWidth,
-      this.customStyles,
-      this.expands = false,
-      this.autoFocus = false,
-      this.keyboardAppearance = Brightness.light,
-      this.enableInteractiveSelection = true,
-      this.scrollPhysics,
-      this.embedBuilder = defaultEmbedBuilder,
-      this.linkActionPickerDelegate = defaultLinkActionPickerDelegate,
-      this.customStyleBuilder,
-      this.floatingCursorDisabled = false})
+        required this.focusNode,
+        required this.scrollController,
+        required this.scrollBottomInset,
+        required this.cursorStyle,
+        required this.selectionColor,
+        required this.selectionCtrls,
+        Key? key,
+        this.scrollable = true,
+        this.padding = EdgeInsets.zero,
+        this.readOnly = false,
+        this.placeholder,
+        this.onLaunchUrl,
+        this.toolbarOptions = const ToolbarOptions(
+          copy: true,
+          cut: true,
+          paste: true,
+          selectAll: true,
+        ),
+        this.showSelectionHandles = false,
+        bool? showCursor,
+        this.textCapitalization = TextCapitalization.none,
+        this.maxHeight,
+        this.minHeight,
+        this.maxContentWidth,
+        this.customStyles,
+        this.expands = false,
+        this.autoFocus = false,
+        this.keyboardAppearance = Brightness.light,
+        this.enableInteractiveSelection = true,
+        this.scrollPhysics,
+        this.embedBuilder = defaultEmbedBuilder,
+        this.linkActionPickerDelegate = defaultLinkActionPickerDelegate,
+        this.customStyleBuilder,
+        this.floatingCursorDisabled = false})
       : assert(maxHeight == null || maxHeight > 0, 'maxHeight cannot be null'),
         assert(minHeight == null || minHeight >= 0, 'minHeight cannot be null'),
         assert(maxHeight == null || minHeight == null || maxHeight >= minHeight,
-            'maxHeight cannot be null'),
+        'maxHeight cannot be null'),
         showCursor = showCursor ?? true,
         super(key: key);
 
@@ -232,7 +232,6 @@ class RawEditorState extends EditorState
         AutomaticKeepAliveClientMixin<RawEditor>,
         WidgetsBindingObserver,
         TickerProviderStateMixin<RawEditor>,
-        //TextEditingActionTarget,
         RawEditorStateTextInputClientMixin,
         RawEditorStateSelectionDelegateMixin {
   final GlobalKey _editorKey = GlobalKey();
@@ -320,7 +319,7 @@ class RawEditorState extends EditorState
       /// baseline.
       // This implies that the first line has no styles applied to it.
       final baselinePadding =
-          EdgeInsets.only(top: _styles!.paragraph!.verticalSpacing.item1);
+      EdgeInsets.only(top: _styles!.paragraph!.verticalSpacing.item1);
       child = BaselineProxy(
         textStyle: _styles!.paragraph!.style,
         padding: baselinePadding,
@@ -356,8 +355,8 @@ class RawEditorState extends EditorState
     final constraints = widget.expands
         ? const BoxConstraints.expand()
         : BoxConstraints(
-            minHeight: widget.minHeight ?? 0.0,
-            maxHeight: widget.maxHeight ?? double.infinity);
+        minHeight: widget.minHeight ?? 0.0,
+        maxHeight: widget.maxHeight ?? double.infinity);
 
     return QuillStyles(
       data: _styles!,
@@ -560,11 +559,11 @@ class RawEditorState extends EditorState
       _keyboardVisible = _keyboardVisibilityController!.isVisible;
       _keyboardVisibilitySubscription =
           _keyboardVisibilityController?.onChange.listen((visible) {
-        _keyboardVisible = visible;
-        if (visible) {
-          _onChangeTextEditingValue(!_hasFocus);
-        }
-      });
+            _keyboardVisible = visible;
+            if (visible) {
+              _onChangeTextEditingValue(!_hasFocus);
+            }
+          });
     }
 
     _focusAttachment = widget.focusNode.attach(context);
@@ -798,7 +797,7 @@ class RawEditorState extends EditorState
 
         final viewport = RenderAbstractViewport.of(renderEditor);
         final editorOffset =
-            renderEditor.localToGlobal(const Offset(0, 0), ancestor: viewport);
+        renderEditor.localToGlobal(const Offset(0, 0), ancestor: viewport);
         final offsetInViewport = _scrollController.offset + editorOffset.dy;
 
         final offset = renderEditor.getOffsetToRevealCursor(
@@ -895,7 +894,6 @@ class RawEditorState extends EditorState
       Clipboard.setData(ClipboardData(text: selection.textInside(text)));
     }
     copySelection(cause);
-
     if (cause == SelectionChangedCause.toolbar) {
       bringIntoView(textEditingValue.selection.extent);
       hideToolbar(false);
@@ -906,7 +904,7 @@ class RawEditorState extends EditorState
           TextEditingValue(
             text: textEditingValue.text,
             selection:
-                TextSelection.collapsed(offset: textEditingValue.selection.end),
+            TextSelection.collapsed(offset: textEditingValue.selection.end),
           ),
           SelectionChangedCause.toolbar,
         );
@@ -999,6 +997,7 @@ class RawEditorState extends EditorState
       );
     }
     pasteText(cause); // ignore: unawaited_futures
+
     if (cause == SelectionChangedCause.toolbar) {
       bringIntoView(textEditingValue.selection.extent);
       hideToolbar();
