@@ -1,3 +1,54 @@
+# [3.9.4]
+* Hiding dialog after selecting action for image.
+
+# [3.9.3]
+* Update ImageResizer for Android.
+
+# [3.9.2]
+* Copy image with its style.
+
+# [3.9.1]
+* Support resizing image.
+
+# [3.9.0]
+* Image menu options for copy/remove.
+
+# [3.8.8]
+* Update set textEditingValue.
+
+# [3.8.7]
+* Fix checkbox not toggled correctly in toolbar button.
+
+# [3.8.6]
+* Fix cursor position changes when checking/unchecking the checkbox.
+
+# [3.8.5]
+* Fix _handleDragUpdate in _TextSelectionHandleOverlayState.
+
+# [3.8.4]
+* Fix link dialog layout.
+
+# [3.8.3]
+* Fix for errors on a non scrollable editor.
+
+# [3.8.2]
+* Fix certain keys not working on web when editor is a child of a scroll view.
+
+# [3.8.1]
+* Refactor _QuillEditorState to QuillEditorState.
+
+# [3.8.0]
+* Support pasting with format.
+
+# [3.7.3]
+* Fix selection overlay for collapsed selection.
+
+# [3.7.2]
+* Reverted Embed toPlainText change.
+
+# [3.7.1]
+* Change Embed toPlainText to be empty string.
+
 # [3.7.0]
 * Replace Toolbar showHistory group with individual showRedo and showUndo.
 

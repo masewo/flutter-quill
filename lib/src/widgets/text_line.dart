@@ -8,8 +8,9 @@ import 'package:flutter/services.dart';
 import 'package:tuple/tuple.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../flutter_quill.dart';
+import '../models/documents/attribute.dart';
 import '../models/documents/nodes/container.dart' as container_node;
+import '../models/documents/nodes/leaf.dart';
 import '../models/documents/nodes/leaf.dart' as leaf;
 import '../models/documents/nodes/line.dart';
 import '../models/documents/nodes/node.dart';
@@ -17,7 +18,9 @@ import '../models/documents/style.dart';
 import '../utils/color.dart';
 import '../utils/platform.dart';
 import 'box.dart';
+import 'controller.dart';
 import 'cursor.dart';
+import 'default_styles.dart';
 import 'delegate.dart';
 import 'keyboard_listener.dart';
 import 'link.dart';
@@ -130,7 +133,8 @@ class _TextLineState extends State<TextLine> {
     if (widget.line.hasEmbed && widget.line.childCount == 1) {
       // For video, it is always single child
       final embed = widget.line.children.single as Embed;
-      return EmbedProxy(widget.embedBuilder(context, embed, widget.readOnly));
+      return EmbedProxy(widget.embedBuilder(
+          context, widget.controller, embed, widget.readOnly));
     }
     final textSpan = _getTextSpanForWholeLine(context);
     final strutStyle = StrutStyle.fromTextStyle(textSpan.style!);
@@ -170,8 +174,8 @@ class _TextLineState extends State<TextLine> {
         }
         // Here it should be image
         final embed = WidgetSpan(
-            child: EmbedProxy(
-                widget.embedBuilder(context, child, widget.readOnly)));
+            child: EmbedProxy(widget.embedBuilder(
+                context, widget.controller, child, widget.readOnly)));
         textSpanChildren.add(embed);
         continue;
       }

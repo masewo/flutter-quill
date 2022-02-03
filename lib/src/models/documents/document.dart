@@ -157,10 +157,22 @@ class Document {
     return (res.node as Line).collectStyle(res.offset, len);
   }
 
+  /// Returns all styles for each node within selection
+  List<Tuple2<int, Style>> collectAllIndividualStyles(int index, int len) {
+    final res = queryChild(index);
+    return (res.node as Line).collectAllIndividualStyles(res.offset, len);
+  }
+
   /// Returns all styles for any character within the specified text range.
   List<Style> collectAllStyles(int index, int len) {
     final res = queryChild(index);
     return (res.node as Line).collectAllStyles(res.offset, len);
+  }
+
+  /// Returns plain text within the specified text range.
+  String getPlainText(int index, int len) {
+    final res = queryChild(index);
+    return (res.node as Line).getPlainText(res.offset, len);
   }
 
   /// Returns [Line] located at specified character [offset].
@@ -213,6 +225,8 @@ class Document {
           op.attributes != null ? Style.fromJson(op.attributes) : null;
 
       if (op.isInsert) {
+        // Must normalize data before inserting into the document, makes sure
+        // that any embedded objects are converted into EmbeddableObject type.
         _root.insert(offset, _normalize(op.data), style);
       } else if (op.isDelete) {
         _root.delete(offset, op.length);

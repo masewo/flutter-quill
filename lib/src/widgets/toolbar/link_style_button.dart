@@ -102,7 +102,7 @@ class _LinkStyleButtonState extends State<LinkStyleButton> {
       context: context,
       builder: (ctx) {
         final link = _getLinkAttributeValue();
-        final index = widget.controller.selection.baseOffset;
+        final index = widget.controller.selection.start;
 
         var text;
         if (link != null) {
@@ -115,8 +115,7 @@ class _LinkStyleButtonState extends State<LinkStyleButton> {
         }
 
         text ??= widget.controller.document
-            .toPlainText()
-            .substring(index, widget.controller.selection.extentOffset);
+            .getPlainText(index, widget.controller.selection.end - index);
         return _LinkDialog(
             dialogTheme: widget.dialogTheme, link: link, text: text);
       },
@@ -135,8 +134,8 @@ class _LinkStyleButtonState extends State<LinkStyleButton> {
     final String text = (value as Tuple2).item1;
     final String link = value.item2.trim();
 
-    var index = widget.controller.selection.baseOffset;
-    var length = widget.controller.selection.extentOffset - index;
+    var index = widget.controller.selection.start;
+    var length = widget.controller.selection.end - index;
     if (_getLinkAttributeValue() != null) {
       // text should be the link's corresponding text, not selection
       final leaf = widget.controller.document.querySegmentLeafNode(index).item2;
@@ -183,10 +182,11 @@ class _LinkDialogState extends State<_LinkDialog> {
     return AlertDialog(
       backgroundColor: widget.dialogTheme?.dialogBackgroundColor,
       content: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          const SizedBox(height: 8),
           TextField(
             keyboardType: TextInputType.multiline,
-            maxLines: null,
             style: widget.dialogTheme?.inputTextStyle,
             decoration: InputDecoration(
                 labelText: 'Text'.i18n,
@@ -196,9 +196,9 @@ class _LinkDialogState extends State<_LinkDialog> {
             onChanged: _textChanged,
             controller: _textController,
           ),
+          const SizedBox(height: 16),
           TextField(
             keyboardType: TextInputType.multiline,
-            maxLines: null,
             style: widget.dialogTheme?.inputTextStyle,
             decoration: InputDecoration(
                 labelText: 'Link'.i18n,
