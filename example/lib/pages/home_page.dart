@@ -96,7 +96,7 @@ class _HomePageState extends State<HomePage> {
         scrollController: ScrollController(),
         scrollable: true,
         focusNode: _focusNode,
-        autoFocus: true,
+        autoFocus: false,
         readOnly: false,
         placeholder: 'Add content',
         expands: false,

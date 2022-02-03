@@ -44,7 +44,7 @@ class QuillKeyboardListenerState extends State<QuillKeyboardListener> {
   final QuillPressedKeys _pressedKeys = QuillPressedKeys();
 
   bool _keyEvent(KeyEvent event) {
-  _pressedKeys
+    _pressedKeys
         ._updatePressedKeys(HardwareKeyboard.instance.logicalKeysPressed);
     return false;
   }
