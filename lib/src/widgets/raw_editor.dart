@@ -232,7 +232,7 @@ class RawEditorState extends EditorState
         AutomaticKeepAliveClientMixin<RawEditor>,
         WidgetsBindingObserver,
         TickerProviderStateMixin<RawEditor>,
-        TextEditingActionTarget,
+        //TextEditingActionTarget,
         RawEditorStateTextInputClientMixin,
         RawEditorStateSelectionDelegateMixin {
   final GlobalKey _editorKey = GlobalKey();
@@ -885,7 +885,17 @@ class RawEditorState extends EditorState
     _pastePlainText = widget.controller.getPlainText();
     _pasteStyle = widget.controller.getAllIndividualSelectionStyles();
     // Copied straight from EditableTextState
-    super.copySelection(cause);
+    void copySelection(SelectionChangedCause cause) {
+      final TextSelection selection = textEditingValue.selection;
+      final String text = textEditingValue.text;
+      assert(selection != null);
+      if (selection.isCollapsed || !selection.isValid) {
+        return;
+      }
+      Clipboard.setData(ClipboardData(text: selection.textInside(text)));
+    }
+    copySelection(cause);
+
     if (cause == SelectionChangedCause.toolbar) {
       bringIntoView(textEditingValue.selection.extent);
       hideToolbar(false);
@@ -911,7 +921,29 @@ class RawEditorState extends EditorState
     _pasteStyle = widget.controller.getAllIndividualSelectionStyles();
 
     // Copied straight from EditableTextState
-    super.cutSelection(cause);
+    void cutSelection(SelectionChangedCause cause) {
+      final TextSelection selection = textEditingValue.selection;
+      if (readOnly || !selection.isValid) {
+        return;
+      }
+      final String text = textEditingValue.text;
+      assert(selection != null);
+      if (selection.isCollapsed) {
+        return;
+      }
+      Clipboard.setData(ClipboardData(text: selection.textInside(text)));
+      setTextEditingValue(
+        TextEditingValue(
+          text: selection.textBefore(text) + selection.textAfter(text),
+          selection: TextSelection.collapsed(
+            offset: math.min(selection.start, selection.end),
+            affinity: selection.affinity,
+          ),
+        ),
+        cause,
+      );
+    }
+    cutSelection(cause);
     if (cause == SelectionChangedCause.toolbar) {
       bringIntoView(textEditingValue.selection.extent);
       hideToolbar();
@@ -936,18 +968,66 @@ class RawEditorState extends EditorState
     }
 
     // Copied straight from EditableTextState
-    super.pasteText(cause); // ignore: unawaited_futures
-
+    Future<void> pasteText(SelectionChangedCause cause) async {
+      final TextSelection selection = textEditingValue.selection;
+      if (readOnly || !selection.isValid) {
+        return;
+      }
+      final String text = textEditingValue.text;
+      assert(selection != null);
+      if (!selection.isValid) {
+        return;
+      }
+      // Snapshot the input before using `await`.
+      // See https://github.com/flutter/flutter/issues/11427
+      final ClipboardData? data = await Clipboard.getData(Clipboard.kTextPlain);
+      if (data == null) {
+        return;
+      }
+      setTextEditingValue(
+        TextEditingValue(
+          text: selection.textBefore(text) +
+              data.text! +
+              selection.textAfter(text),
+          selection: TextSelection.collapsed(
+            offset:
+            math.min(selection.start, selection.end) + data.text!.length,
+            affinity: selection.affinity,
+          ),
+        ),
+        cause,
+      );
+    }
+    pasteText(cause); // ignore: unawaited_futures
     if (cause == SelectionChangedCause.toolbar) {
       bringIntoView(textEditingValue.selection.extent);
       hideToolbar();
     }
   }
 
+  void setSelection(TextSelection nextSelection, SelectionChangedCause cause) {
+    if (nextSelection == textEditingValue.selection) {
+      return;
+    }
+    setTextEditingValue(
+      textEditingValue.copyWith(selection: nextSelection),
+      cause,
+    );
+  }
+
   @override
   void selectAll(SelectionChangedCause cause) {
     // Copied straight from EditableTextState
-    super.selectAll(cause);
+    void selectAll(SelectionChangedCause cause) {
+      setSelection(
+        textEditingValue.selection.copyWith(
+          baseOffset: 0,
+          extentOffset: textEditingValue.text.length,
+        ),
+        cause,
+      );
+    }
+    selectAll(cause);
     if (cause == SelectionChangedCause.toolbar) {
       bringIntoView(textEditingValue.selection.extent);
     }
