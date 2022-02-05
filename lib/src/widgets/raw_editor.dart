@@ -26,6 +26,7 @@ import 'default_styles.dart';
 import 'delegate.dart';
 import 'editor.dart';
 import 'embeds/default_embed_builder.dart';
+import 'embeds/image.dart';
 import 'keyboard_listener.dart';
 import 'link.dart';
 import 'proxy.dart';
@@ -254,7 +255,6 @@ class RawEditorState extends EditorState
 
   // Focus
   bool _didAutoFocus = false;
-  FocusAttachment? _focusAttachment;
   bool get _hasFocus => widget.focusNode.hasFocus;
 
   // Theme
@@ -278,7 +278,6 @@ class RawEditorState extends EditorState
   @override
   Widget build(BuildContext context) {
     assert(debugCheckHasMediaQuery(context));
-    _focusAttachment!.reparent();
     super.build(context);
 
     var _doc = widget.controller.document;
@@ -566,7 +565,7 @@ class RawEditorState extends EditorState
           });
     }
 
-    _focusAttachment = widget.focusNode.attach(context);
+    // Focus
     widget.focusNode.addListener(_handleFocusChanged);
   }
 
@@ -610,8 +609,6 @@ class RawEditorState extends EditorState
 
     if (widget.focusNode != oldWidget.focusNode) {
       oldWidget.focusNode.removeListener(_handleFocusChanged);
-      _focusAttachment?.detach();
-      _focusAttachment = widget.focusNode.attach(context);
       widget.focusNode.addListener(_handleFocusChanged);
       updateKeepAlive();
     }
@@ -649,7 +646,6 @@ class RawEditorState extends EditorState
     _selectionOverlay = null;
     widget.controller.removeListener(_didChangeTextEditingValue);
     widget.focusNode.removeListener(_handleFocusChanged);
-    _focusAttachment!.detach();
     _cursorCont.dispose();
     _clipboardStatus
       ..removeListener(_onChangedClipboardStatus)
@@ -826,8 +822,15 @@ class RawEditorState extends EditorState
   /// This property is typically used to notify the renderer of input gestures.
   @override
   RenderEditor get renderEditor =>
-      _editorKey.currentContext?.findRenderObject() as RenderEditor;
+      _editorKey.currentContext!.findRenderObject() as RenderEditor;
 
+  /// Express interest in interacting with the keyboard.
+  ///
+  /// If this control is already attached to the keyboard, this function will
+  /// request that the keyboard become visible. Otherwise, this function will
+  /// ask the focus system that it become focused. If successful in acquiring
+  /// focus, the control will then attach to the keyboard and request that the
+  /// keyboard become visible.
   @override
   void requestKeyboard() {
     if (_hasFocus) {
@@ -836,24 +839,6 @@ class RawEditorState extends EditorState
     } else {
       widget.focusNode.requestFocus();
     }
-  }
-
-  @override
-  void setTextEditingValue(
-      TextEditingValue value, SelectionChangedCause cause) {
-    if (value == textEditingValue) {
-      return;
-    }
-    textEditingValue = value;
-    userUpdateTextEditingValue(value, cause);
-
-    // keyboard and text input force a selection completion
-    _handleSelectionCompleted();
-  }
-
-  @override
-  void debugAssertLayoutUpToDate() {
-    renderEditor.debugAssertLayoutUpToDate();
   }
 
   /// Shows the selection toolbar at the location of the current cursor.
@@ -883,17 +868,19 @@ class RawEditorState extends EditorState
     widget.controller.copiedImageUrl = null;
     _pastePlainText = widget.controller.getPlainText();
     _pasteStyle = widget.controller.getAllIndividualSelectionStyles();
+
     // Copied straight from EditableTextState
-    void copySelection(SelectionChangedCause cause) {
-      final TextSelection selection = textEditingValue.selection;
-      final String text = textEditingValue.text;
-      assert(selection != null);
+    void _copySelection(SelectionChangedCause cause) {
+      final selection = textEditingValue.selection;
+      final text = textEditingValue.text;
       if (selection.isCollapsed || !selection.isValid) {
         return;
       }
       Clipboard.setData(ClipboardData(text: selection.textInside(text)));
     }
-    copySelection(cause);
+
+    _copySelection(cause);
+
     if (cause == SelectionChangedCause.toolbar) {
       bringIntoView(textEditingValue.selection.extent);
       hideToolbar(false);
@@ -919,18 +906,17 @@ class RawEditorState extends EditorState
     _pasteStyle = widget.controller.getAllIndividualSelectionStyles();
 
     // Copied straight from EditableTextState
-    void cutSelection(SelectionChangedCause cause) {
-      final TextSelection selection = textEditingValue.selection;
-      if (readOnly || !selection.isValid) {
+    void _cutSelection(SelectionChangedCause cause) {
+      final selection = textEditingValue.selection;
+      if (widget.readOnly || !selection.isValid) {
         return;
       }
-      final String text = textEditingValue.text;
-      assert(selection != null);
+      final text = textEditingValue.text;
       if (selection.isCollapsed) {
         return;
       }
       Clipboard.setData(ClipboardData(text: selection.textInside(text)));
-      setTextEditingValue(
+      userUpdateTextEditingValue(
         TextEditingValue(
           text: selection.textBefore(text) + selection.textAfter(text),
           selection: TextSelection.collapsed(
@@ -941,7 +927,9 @@ class RawEditorState extends EditorState
         cause,
       );
     }
-    cutSelection(cause);
+
+    _cutSelection(cause);
+
     if (cause == SelectionChangedCause.toolbar) {
       bringIntoView(textEditingValue.selection.extent);
       hideToolbar();
@@ -957,8 +945,10 @@ class RawEditorState extends EditorState
       widget.controller
           .replaceText(index, length, BlockEmbed.image(copied.item1), null);
       if (copied.item2.isNotEmpty) {
-        widget.controller
-            .formatText(index + 1, 1, StyleAttribute(copied.item2));
+        widget.controller.formatText(
+            getImageNode(widget.controller, index + 1).item1,
+            1,
+            StyleAttribute(copied.item2));
       }
       widget.controller.copiedImageUrl = null;
       await Clipboard.setData(const ClipboardData(text: ''));
@@ -967,22 +957,21 @@ class RawEditorState extends EditorState
 
     // Copied straight from EditableTextState
     Future<void> pasteText(SelectionChangedCause cause) async {
-      final TextSelection selection = textEditingValue.selection;
-      if (readOnly || !selection.isValid) {
+      final selection = textEditingValue.selection;
+      if (widget.readOnly || !selection.isValid) {
         return;
       }
-      final String text = textEditingValue.text;
-      assert(selection != null);
+      final text = textEditingValue.text;
       if (!selection.isValid) {
         return;
       }
       // Snapshot the input before using `await`.
       // See https://github.com/flutter/flutter/issues/11427
-      final ClipboardData? data = await Clipboard.getData(Clipboard.kTextPlain);
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
       if (data == null) {
         return;
       }
-      setTextEditingValue(
+      userUpdateTextEditingValue(
         TextEditingValue(
           text: selection.textBefore(text) +
               data.text! +
@@ -996,6 +985,7 @@ class RawEditorState extends EditorState
         cause,
       );
     }
+
     pasteText(cause); // ignore: unawaited_futures
 
     if (cause == SelectionChangedCause.toolbar) {
@@ -1004,11 +994,11 @@ class RawEditorState extends EditorState
     }
   }
 
-  void setSelection(TextSelection nextSelection, SelectionChangedCause cause) {
+  void _setSelection(TextSelection nextSelection, SelectionChangedCause cause) {
     if (nextSelection == textEditingValue.selection) {
       return;
     }
-    setTextEditingValue(
+    userUpdateTextEditingValue(
       textEditingValue.copyWith(selection: nextSelection),
       cause,
     );
@@ -1017,8 +1007,8 @@ class RawEditorState extends EditorState
   @override
   void selectAll(SelectionChangedCause cause) {
     // Copied straight from EditableTextState
-    void selectAll(SelectionChangedCause cause) {
-      setSelection(
+    void _selectAll(SelectionChangedCause cause) {
+      _setSelection(
         textEditingValue.selection.copyWith(
           baseOffset: 0,
           extentOffset: textEditingValue.text.length,
@@ -1026,7 +1016,9 @@ class RawEditorState extends EditorState
         cause,
       );
     }
-    selectAll(cause);
+
+    _selectAll(cause);
+
     if (cause == SelectionChangedCause.toolbar) {
       bringIntoView(textEditingValue.selection.extent);
     }
@@ -1034,18 +1026,6 @@ class RawEditorState extends EditorState
 
   @override
   bool get wantKeepAlive => widget.focusNode.hasFocus;
-
-  @override
-  bool get obscureText => false;
-
-  @override
-  bool get selectionEnabled => widget.enableInteractiveSelection;
-
-  @override
-  bool get readOnly => widget.readOnly;
-
-  @override
-  TextLayoutMetrics get textLayoutMetrics => renderEditor;
 
   @override
   AnimationController get floatingCursorResetController =>
