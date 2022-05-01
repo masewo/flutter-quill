@@ -6,6 +6,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:i18n_extension/i18n_widget.dart';
 import 'package:tuple/tuple.dart';
 
 import '../models/documents/document.dart';
@@ -169,7 +170,9 @@ class QuillEditor extends StatefulWidget {
       this.embedBuilder = defaultEmbedBuilder,
       this.linkActionPickerDelegate = defaultLinkActionPickerDelegate,
       this.customStyleBuilder,
+      this.locale,
       this.floatingCursorDisabled = false,
+      this.textSelectionControls,
       Key? key})
       : super(key: key);
 
@@ -339,6 +342,10 @@ class QuillEditor extends StatefulWidget {
   final EmbedBuilder embedBuilder;
   final CustomStyleBuilder? customStyleBuilder;
 
+  /// The locale to use for the editor toolbar, defaults to system locale
+  /// More https://github.com/singerdmx/flutter-quill#translation
+  final Locale? locale;
+
   /// Delegate function responsible for showing menu with link actions on
   /// mobile platforms (iOS, Android).
   ///
@@ -355,6 +362,11 @@ class QuillEditor extends StatefulWidget {
   final LinkActionPickerDelegate linkActionPickerDelegate;
 
   final bool floatingCursorDisabled;
+
+  /// allows to create a custom textSelectionControls,
+  /// if this is null a default textSelectionControls based on the app's theme
+  /// will be used
+  final TextSelectionControls? textSelectionControls;
 
   @override
   QuillEditorState createState() => QuillEditorState();
@@ -442,7 +454,7 @@ class QuillEditorState extends State<QuillEditor>
       expands: widget.expands,
       autoFocus: widget.autoFocus,
       selectionColor: selectionColor,
-      selectionCtrls: textSelectionControls,
+      selectionCtrls: widget.textSelectionControls ?? textSelectionControls,
       keyboardAppearance: widget.keyboardAppearance,
       enableInteractiveSelection: widget.enableInteractiveSelection,
       scrollPhysics: widget.scrollPhysics,
@@ -452,10 +464,12 @@ class QuillEditorState extends State<QuillEditor>
       floatingCursorDisabled: widget.floatingCursorDisabled,
     );
 
-    final editor = _selectionGestureDetectorBuilder.build(
-      behavior: HitTestBehavior.translucent,
-      child: child,
-    );
+    final editor = I18n(
+        initialLocale: widget.locale,
+        child: _selectionGestureDetectorBuilder.build(
+          behavior: HitTestBehavior.translucent,
+          child: child,
+        ));
 
     if (kIsWeb) {
       // Intercept RawKeyEvent on Web to prevent it from propagating to parents
@@ -583,44 +597,47 @@ class _QuillEditorSelectionGestureDetectorBuilder
 
     editor!.hideToolbar();
 
-    if (delegate.selectionEnabled && !_isPositionSelected(details)) {
-      final _platform = Theme.of(_state.context).platform;
-      if (isAppleOS(_platform)) {
-        switch (details.kind) {
-          case PointerDeviceKind.mouse:
-          case PointerDeviceKind.stylus:
-          case PointerDeviceKind.invertedStylus:
-            // Precise devices should place the cursor at a precise position.
-            // If `Shift` key is pressed then
-            // extend current selection instead.
-            if (isShiftClick(details.kind)) {
-              renderEditor!
-                ..extendSelection(details.globalPosition,
-                    cause: SelectionChangedCause.tap)
-                ..onSelectionCompleted();
-            } else {
-              renderEditor!
-                ..selectPosition(cause: SelectionChangedCause.tap)
-                ..onSelectionCompleted();
-            }
+    try {
+      if (delegate.selectionEnabled && !_isPositionSelected(details)) {
+        final _platform = Theme.of(_state.context).platform;
+        if (isAppleOS(_platform)) {
+          switch (details.kind) {
+            case PointerDeviceKind.mouse:
+            case PointerDeviceKind.stylus:
+            case PointerDeviceKind.invertedStylus:
+              // Precise devices should place the cursor at a precise position.
+              // If `Shift` key is pressed then
+              // extend current selection instead.
+              if (isShiftClick(details.kind)) {
+                renderEditor!
+                  ..extendSelection(details.globalPosition,
+                      cause: SelectionChangedCause.tap)
+                  ..onSelectionCompleted();
+              } else {
+                renderEditor!
+                  ..selectPosition(cause: SelectionChangedCause.tap)
+                  ..onSelectionCompleted();
+              }
 
-            break;
-          case PointerDeviceKind.touch:
-          case PointerDeviceKind.unknown:
-            // On macOS/iOS/iPadOS a touch tap places the cursor at the edge
-            // of the word.
-            renderEditor!
-              ..selectWordEdge(SelectionChangedCause.tap)
-              ..onSelectionCompleted();
-            break;
+              break;
+            case PointerDeviceKind.touch:
+            case PointerDeviceKind.unknown:
+              // On macOS/iOS/iPadOS a touch tap places the cursor at the edge
+              // of the word.
+              renderEditor!
+                ..selectWordEdge(SelectionChangedCause.tap)
+                ..onSelectionCompleted();
+              break;
+          }
+        } else {
+          renderEditor!
+            ..selectPosition(cause: SelectionChangedCause.tap)
+            ..onSelectionCompleted();
         }
-      } else {
-        renderEditor!
-          ..selectPosition(cause: SelectionChangedCause.tap)
-          ..onSelectionCompleted();
       }
+    } finally {
+      _state._requestKeyboard();
     }
-    _state._requestKeyboard();
   }
 
   @override
@@ -1536,16 +1553,47 @@ class RenderEditor extends RenderEditableContainerBox
 
   // End TextLayoutMetrics implementation
 
+  QuillVerticalCaretMovementRun startVerticalCaretMovement(
+      TextPosition startPosition) {
+    return QuillVerticalCaretMovementRun._(
+      this,
+      startPosition,
+    );
+  }
+
   @override
   void systemFontsDidChange() {
     super.systemFontsDidChange();
     markNeedsLayout();
   }
+}
 
-  void debugAssertLayoutUpToDate() {
-    // no-op?
-    // this assert was added by Flutter TextEditingActionTarge
-    // so we have to comply here.
+class QuillVerticalCaretMovementRun
+    extends BidirectionalIterator<TextPosition> {
+  QuillVerticalCaretMovementRun._(
+    this._editor,
+    this._currentTextPosition,
+  );
+
+  TextPosition _currentTextPosition;
+
+  final RenderEditor _editor;
+
+  @override
+  TextPosition get current {
+    return _currentTextPosition;
+  }
+
+  @override
+  bool moveNext() {
+    _currentTextPosition = _editor.getTextPositionBelow(_currentTextPosition);
+    return true;
+  }
+
+  @override
+  bool movePrevious() {
+    _currentTextPosition = _editor.getTextPositionAbove(_currentTextPosition);
+    return true;
   }
 }
 
