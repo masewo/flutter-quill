@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../models/themes/quill_icon_theme.dart';
 
-@Deprecated('Not being used')
 class QuillDropdownButton<T> extends StatefulWidget {
   const QuillDropdownButton({
-    required this.child,
     required this.initialValue,
     required this.items,
     required this.onSelected,
@@ -11,6 +10,7 @@ class QuillDropdownButton<T> extends StatefulWidget {
     this.fillColor,
     this.hoverElevation = 1,
     this.highlightElevation = 1,
+    this.iconTheme,
     Key? key,
   }) : super(key: key);
 
@@ -18,10 +18,10 @@ class QuillDropdownButton<T> extends StatefulWidget {
   final Color? fillColor;
   final double hoverElevation;
   final double highlightElevation;
-  final Widget child;
   final T initialValue;
   final List<PopupMenuEntry<T>> items;
   final ValueChanged<T> onSelected;
+  final QuillIconTheme? iconTheme;
 
   @override
   _QuillDropdownButtonState<T> createState() => _QuillDropdownButtonState<T>();
@@ -29,13 +29,23 @@ class QuillDropdownButton<T> extends StatefulWidget {
 
 // ignore: deprecated_member_use_from_same_package
 class _QuillDropdownButtonState<T> extends State<QuillDropdownButton<T>> {
+  int _currentValue = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentValue = widget.initialValue as int;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
       constraints: BoxConstraints.tightFor(height: widget.height),
       child: RawMaterialButton(
         visualDensity: VisualDensity.compact,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+        shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(widget.iconTheme?.borderRadius ?? 2)),
         fillColor: widget.fillColor,
         elevation: 0,
         hoverElevation: widget.hoverElevation,
@@ -76,18 +86,21 @@ class _QuillDropdownButtonState<T> extends State<QuillDropdownButton<T>> {
         // if (widget.onCanceled != null) widget.onCanceled();
         return null;
       }
-      widget.onSelected(newValue);
+      setState(() {
+        _currentValue = newValue as int;
+        widget.onSelected(newValue);
+      });
     });
   }
 
   Widget _buildContent(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints.tightFor(width: 110),
+      constraints: const BoxConstraints.tightFor(width: 60),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(
           children: [
-            widget.child,
+            Text(_currentValue.toString()),
             Expanded(child: Container()),
             const Icon(Icons.arrow_drop_down, size: 15)
           ],

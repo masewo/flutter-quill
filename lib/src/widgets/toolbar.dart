@@ -21,6 +21,7 @@ import 'toolbar/select_header_style_button.dart';
 import 'toolbar/toggle_check_list_button.dart';
 import 'toolbar/toggle_style_button.dart';
 import 'toolbar/video_button.dart';
+import 'toolbar/quill_dropdown_button.dart';
 
 export 'toolbar/clear_format_button.dart';
 export 'toolbar/color_button.dart';
@@ -72,6 +73,7 @@ class QuillToolbar extends StatelessWidget implements PreferredSizeWidget {
     double toolbarSectionSpacing = 4,
     WrapAlignment toolbarIconAlignment = WrapAlignment.center,
     bool showDividers = true,
+    bool showFontSize = true,
     bool showBoldButton = true,
     bool showItalicButton = true,
     bool showSmallButton = false,
@@ -108,6 +110,10 @@ class QuillToolbar extends StatelessWidget implements PreferredSizeWidget {
     WebImagePickImpl? webImagePickImpl,
     WebVideoPickImpl? webVideoPickImpl,
 
+    ///List of font sizes in [int]
+    List? fontSizeValues,
+    int? initialFontSizeValue,
+
     ///The theme to use for the icons in the toolbar, uses type [QuillIconTheme]
     QuillIconTheme? iconTheme,
 
@@ -121,7 +127,8 @@ class QuillToolbar extends StatelessWidget implements PreferredSizeWidget {
     Key? key,
   }) {
     final isButtonGroupShown = [
-      showBoldButton ||
+      showFontSize ||
+          showBoldButton ||
           showItalicButton ||
           showSmallButton ||
           showUnderLineButton ||
@@ -142,6 +149,10 @@ class QuillToolbar extends StatelessWidget implements PreferredSizeWidget {
       showQuote || showIndent,
       showLink
     ];
+
+    //default font size values
+    final fontSizes =
+        fontSizeValues ?? [10, 12, 14, 16, 18, 20, 24, 28, 32, 48];
 
     return QuillToolbar(
       key: key,
@@ -166,6 +177,25 @@ class QuillToolbar extends StatelessWidget implements PreferredSizeWidget {
             controller: controller,
             undo: false,
             iconTheme: iconTheme,
+          ),
+        if (showFontSize)
+          QuillDropdownButton(
+            iconTheme: iconTheme,
+            height: toolbarIconSize * 2,
+            items: [
+              for (var fontSize in fontSizes)
+                PopupMenuItem<int>(
+                  value: fontSize,
+                  child: Text(fontSize.toString()),
+                ),
+            ],
+            onSelected: (newSize) {
+              if (newSize != null) {
+                controller
+                    .formatSelection(Attribute.fromKeyValue('size', newSize));
+              }
+            },
+            initialValue: fontSizes[initialFontSizeValue ?? 0],
           ),
         if (showBoldButton)
           ToggleStyleButton(
