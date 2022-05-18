@@ -7,6 +7,7 @@ import '../models/documents/attribute.dart';
 import '../models/themes/quill_custom_icon.dart';
 import '../models/themes/quill_dialog_theme.dart';
 import '../models/themes/quill_icon_theme.dart';
+import '../utils/font.dart';
 import 'controller.dart';
 import 'toolbar/arrow_indicated_button_list.dart';
 import 'toolbar/camera_button.dart';
@@ -17,7 +18,7 @@ import 'toolbar/image_button.dart';
 import 'toolbar/image_video_utils.dart';
 import 'toolbar/indent_button.dart';
 import 'toolbar/link_style_button.dart';
-import 'toolbar/quill_dropdown_button.dart';
+import 'toolbar/quill_font_size_button.dart';
 import 'toolbar/quill_icon_button.dart';
 import 'toolbar/select_alignment_button.dart';
 import 'toolbar/select_header_style_button.dart';
@@ -32,7 +33,7 @@ export 'toolbar/image_button.dart';
 export 'toolbar/image_video_utils.dart';
 export 'toolbar/indent_button.dart';
 export 'toolbar/link_style_button.dart';
-export 'toolbar/quill_dropdown_button.dart';
+export 'toolbar/quill_font_size_button.dart';
 export 'toolbar/quill_icon_button.dart';
 export 'toolbar/select_alignment_button.dart';
 export 'toolbar/select_header_style_button.dart';
@@ -114,9 +115,8 @@ class QuillToolbar extends StatelessWidget implements PreferredSizeWidget {
     WebVideoPickImpl? webVideoPickImpl,
     List<QuillCustomIcon> customIcons = const [],
 
-    ///Map of font sizes in [int]
-    Map<String, int>? fontSizeValues,
-    int? initialFontSizeValue,
+    ///Map of font sizes in string
+    Map<String, String>? fontSizeValues,
 
     ///The theme to use for the icons in the toolbar, uses type [QuillIconTheme]
     QuillIconTheme? iconTheme,
@@ -155,20 +155,8 @@ class QuillToolbar extends StatelessWidget implements PreferredSizeWidget {
     ];
 
     //default font size values
-    final fontSizes = fontSizeValues ??
-        {
-          'Default': 0,
-          '10': 10,
-          '12': 12,
-          '14': 14,
-          '16': 16,
-          '18': 18,
-          '20': 20,
-          '24': 24,
-          '28': 28,
-          '32': 32,
-          '48': 48
-        };
+    final fontSizes =
+        fontSizeValues ?? {'Small': 'small', 'Large': 'large', 'Huge': 'huge'};
 
     return QuillToolbar(
       key: key,
@@ -196,34 +184,24 @@ class QuillToolbar extends StatelessWidget implements PreferredSizeWidget {
             iconTheme: iconTheme,
           ),
         if (showFontSize)
-          QuillDropdownButton(
+          QuillFontSizeButton(
             iconTheme: iconTheme,
             iconSize: toolbarIconSize,
             attribute: Attribute.size,
             controller: controller,
             items: [
-              for (MapEntry<String, int> fontSize in fontSizes.entries)
-                PopupMenuItem<int>(
+              for (MapEntry<String, String> fontSize in fontSizes.entries)
+                PopupMenuItem<String>(
                   key: ValueKey(fontSize.key),
                   value: fontSize.value,
                   child: Text(fontSize.key.toString()),
                 ),
             ],
             onSelected: (newSize) {
-              if ((newSize != null) && (newSize as int > 0)) {
-                controller
-                    .formatSelection(Attribute.fromKeyValue('size', newSize));
-              }
-              if (newSize as int == 0) {
-                controller
-                    .formatSelection(Attribute.fromKeyValue('size', null));
-              }
+              controller.formatSelection(Attribute.fromKeyValue(
+                  'size', newSize == '0' ? null : getFontSize(newSize)));
             },
-            rawitemsmap: fontSizes,
-            initialValue: (initialFontSizeValue != null) &&
-                    (initialFontSizeValue <= fontSizes.length - 1)
-                ? initialFontSizeValue
-                : 0,
+            rawItemsMap: fontSizes,
           ),
         if (showBoldButton)
           ToggleStyleButton(
